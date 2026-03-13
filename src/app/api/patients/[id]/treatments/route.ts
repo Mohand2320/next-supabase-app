@@ -4,13 +4,14 @@ import { TreatmentInsert } from '@/types/patient';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const { data: treatments, error } = await supabase
       .from('treatments')
       .select('*')
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .order('date', { ascending: false });
 
     if (error) throw error;
@@ -23,8 +24,9 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const body: Omit<TreatmentInsert, 'patient_id'> = await request.json();
 
@@ -37,7 +39,7 @@ export async function POST(
 
     const newTreatment: TreatmentInsert = {
       ...body,
-      patient_id: params.id,
+      patient_id: id,
     };
 
     const { data, error } = await supabase

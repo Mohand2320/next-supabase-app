@@ -4,14 +4,14 @@ import { PatientUpdate } from '@/types/patient';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
-    // Get patient details
     const { data: patient, error: patientError } = await supabase
       .from('patients')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (patientError) {
@@ -29,15 +29,16 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const body: PatientUpdate = await request.json();
 
     const { data, error } = await supabase
       .from('patients')
       .update(body)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -51,13 +52,14 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const { error } = await supabase
       .from('patients')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) throw error;
 
