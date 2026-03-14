@@ -1,4 +1,7 @@
 export default function Home() {
+  if (typeof window === 'undefined') {
+    console.log('[ROOT_PAGE_LOG] Rendering Home page on server');
+  }
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-center">
       <div className="space-y-4">
