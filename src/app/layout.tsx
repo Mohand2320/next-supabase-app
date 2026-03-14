@@ -22,6 +22,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Log entry into the main layout
+  if (typeof window === 'undefined') {
+    console.log('[ROOT_LAYOUT_LOG] Entry into RootLayout on server');
+  }
   return (
     <html lang="en">
       <body
