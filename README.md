@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js 16 + Supabase Security App
 
-## Getting Started
+Une application Next.js 16 moderne, performante et ultra-sécurisée utilisant Supabase pour l'authentification et la base de données.
 
-First, run the development server:
+## 🛡️ Architecture de Sécurité
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Cette application implémente une stratégie de sécurité multicouche ("Defense in Depth") :
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 1. Authentification & Sessions (SSR)
+- **Supabase SSR (`@supabase/ssr`)** : Utilisation de la dernière bibliothèque de Supabase pour une gestion robuste des sessions côté serveur via les cookies.
+- **Dual-Client Pattern** :
+  - `src/lib/supabase/client.ts` : Client dédié pour le code s'exécutant dans le navigateur (Client Components).
+  - `src/lib/supabase/server.ts` : Client sécurisé pour le code serveur (Server Components, Route Handlers).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Protection des Routes (Middleware)
+- **Middleware Global (`src/middleware.ts`)** : 
+  - Intercepte toutes les requêtes pour vérifier la session.
+  - Protège automatiquement le répertoire `/dashboard`.
+  - Redirige les utilisateurs non-authentifiés vers `/login`.
+  - Rafraîchit les tokens de session de manière transparente.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. API & Validation des Données
+- **Validation avec Zod** : Toutes les routes API utilisent `Zod` pour valider les schémas de données, sanitizer les inputs et prévenir les injections.
+- **Vérification d'Auth Serveur** : Chaque point de terminaison API vérifie l'identité de l'utilisateur avant toute interaction avec la base de données.
 
-## Learn More
+### 4. BDD - Row Level Security (RLS)
+- **Isolation des données** : Politiques SQL strictes définies dans `supabase_rls_setup.sql`.
+- Un utilisateur ne peut voir, modifier ou supprimer que ses propres données (Patients et Traitements).
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Headers de Sécurité HTTP
+Configuration avancée dans `next.config.mjs` :
+- **CSP (Content Security Policy)** : Protection contre les attaques XSS.
+- **HSTS** : Force les connexions HTTPS.
+- **X-Frame-Options** : Protection contre le Clickjacking.
+- **Referrer-Policy** & **MIME Sniffing Prevention**.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 Installation
 
-## Deploy on Vercel
+1. **Cloner le projet**
+   ```bash
+   git clone <repo-url>
+   cd next-supabase-app
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Installer les dépendances**
+   ```bash
+   npm install
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Variables d'environnement**
+   Créez un fichier `.env.local` :
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=votre_url_supabase
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=votre_service_role_key (Serveur uniquement)
+   ```
+
+4. **Configuration de la Base de Données**
+   - Exécutez `create_tables.sql` dans votre dashboard Supabase.
+   - **Important** : Exécutez `supabase_rls_setup.sql` pour activer la sécurité des données.
+
+5. **Lancer le serveur**
+   ```bash
+   npm run dev
+   ```
+
+## 🛠️ Stack Technique
+- **Framework** : Next.js 16 (App Router)
+- **Auth/Database** : Supabase
+- **Validation** : Zod
+- **Style** : Tailwind CSS
+- **Icons/Animations** : Lucide React, Framer Motion
