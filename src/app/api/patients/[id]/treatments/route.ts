@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { TreatmentInsert } from '@/types/patient';
+import { createClientServer } from '@/lib/supabase/server';
+import { treatmentSchema } from '@/lib/validations/patient';
 
+/**
+ * GET /api/patients/[id]/treatments
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
   try {
+    const { id } = await params;
+    const supabase = await createClientServer();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { data: treatments, error } = await supabase
       .from('treatments')
       .select('*')
@@ -18,33 +28,40 @@ export async function GET(
 
     return NextResponse.json(treatments);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[API_ERROR] GET /api/patients/[id]/treatments:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
+/**
+ * POST /api/patients/[id]/treatments
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
   try {
-    const body: Omit<TreatmentInsert, 'patient_id'> = await request.json();
+    const { id } = await params;
+    const supabase = await createClientServer();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!body.treatment_type || body.cost === undefined) {
-      return NextResponse.json(
-        { error: 'Treatment type and cost are required' },
-        { status: 400 }
-      );
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const newTreatment: TreatmentInsert = {
-      ...body,
-      patient_id: id,
-    };
+    const body = await request.json();
+    const validation = treatmentSchema.safeParse({ ...body, patient_id: id });
+
+    if (!validation.success) {
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: validation.error.flatten().fieldErrors 
+      }, { status: 400 });
+    }
 
     const { data, error } = await supabase
       .from('treatments')
-      .insert([newTreatment])
+      .insert([validation.data])
       .select()
       .single();
 
@@ -52,6 +69,7 @@ export async function POST(
 
     return NextResponse.json(data, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[API_ERROR] POST /api/patients/[id]/treatments:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

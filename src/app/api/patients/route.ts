@@ -1,38 +1,48 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { PatientInsert } from '@/types/patient';
+import { createClientServer } from '@/lib/supabase/server';
+import { patientSchema, queryParamsSchema } from '@/lib/validations/patient';
 
+/**
+ * Secure GET Handler for Patients
+ */
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const search = searchParams.get('search');
-  const gender = searchParams.get('gender');
-  const sortBy = searchParams.get('sortBy') || 'created_at';
-  const sortOrder = searchParams.get('sortOrder') || 'desc';
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '10');
-  const offset = (page - 1) * limit;
-
   try {
+    // 1. Authenticate Request
+    const supabase = await createClientServer();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. Validate Query Parameters
+    const { searchParams } = new URL(request.url);
+    const paramsMap = Object.fromEntries(searchParams.entries());
+    const validation = queryParamsSchema.safeParse(paramsMap);
+    
+    if (!validation.success) {
+      return NextResponse.json({ error: 'Invalid query parameters', details: validation.error.format() }, { status: 400 });
+    }
+
+    const { search, gender, sortBy, sortOrder, page, limit } = validation.data;
+    const offset = (page - 1) * limit;
+
+    // 3. Query Database
     let query = supabase
       .from('patients')
       .select('*', { count: 'exact' });
 
-    // Text search
+    // Text search (safe because used in Supabase filter)
     if (search) {
       query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
     }
 
-    // Gender filter
-    if (gender && ['M', 'F', 'Other'].includes(gender)) {
+    if (gender) {
       query = query.eq('gender', gender);
     }
 
-    // Sorting – validate column name to prevent injection
-    const allowedSortColumns = ['last_name', 'first_name', 'created_at', 'date_of_birth'];
-    const safeSort = allowedSortColumns.includes(sortBy) ? sortBy : 'created_at';
-
     const { data: patients, error, count } = await query
-      .order(safeSort, { ascending: sortOrder === 'asc' })
+      .order(sortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
@@ -46,30 +56,48 @@ export async function GET(request: Request) {
         totalPages: count ? Math.ceil(count / limit) : 0,
       },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: any) {
+    console.error('[API_ERROR] GET /api/patients:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
+/**
+ * Secure POST Handler for Patients
+ */
 export async function POST(request: Request) {
   try {
-    const body: PatientInsert = await request.json();
+    // 1. Authenticate Request
+    const supabase = await createClientServer();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    // Basic validation
-    if (!body.first_name || !body.last_name) {
-      return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 });
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 2. Parse and Validate Body
+    const body = await request.json();
+    const validation = patientSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: validation.error.flatten().fieldErrors 
+      }, { status: 400 });
+    }
+
+    // 3. Database Operation
     const { data, error } = await supabase
       .from('patients')
-      .insert([body])
+      .insert([{ ...validation.data, user_id: user.id }]) // Ensure user_id is linked
       .select()
       .single();
 
     if (error) throw error;
 
     return NextResponse.json(data, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: any) {
+    console.error('[API_ERROR] POST /api/patients:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
