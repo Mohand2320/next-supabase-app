@@ -1,0 +1,62 @@
+name: Supabase Backup to Google Drive
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Tous les jours à 2h du matin (UTC)
+  workflow_dispatch:       # Déclenchement manuel possible
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Installer pg_dump
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Créer le backup
+        run: |
+          FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --clean \
+            --if-exists \
+            --no-owner \
+            --no-privileges \
+            | gzip > $FILENAME
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+
+      - name: Installer rclone
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
+
+      - name: Configurer rclone (Google Drive)
+        run: |
+          mkdir -p ~/.config/rclone
+          cat <<EOF > ~/.config/rclone/rclone.conf
+          [gdrive]
+          type = drive
+          scope = drive
+          service_account_credentials = ${{ secrets.GDRIVE_CREDENTIALS }}
+          root_folder_id = ${{ secrets.GDRIVE_FOLDER_ID }}
+          EOF
+
+      - name: Uploader vers Google Drive
+        run: |
+          rclone copy ${{ env.FILENAME }} gdrive:/
+
+      - name: Supprimer les backups de plus de 30 jours
+        run: |
+          rclone delete gdrive:/ --min-age 30d
+
+      - name: Notification en cas d'échec
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USER }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "❌ Backup DentiPro échoué"
+          body: "Le backup automatique de la base de données DentiPro a échoué. Vérifier les logs GitHub Actions."
+          to: ${{ secrets.MAIL_USER }}
