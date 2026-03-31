@@ -18,34 +18,75 @@ jobs:
 
       # -------------------------------------------------------
       # ÉTAPE 1 — Installer les outils nécessaires
-      # postgresql-client : fournit pg_dump
+      # postgresql-client : fournit pg_dump et psql
+      # dnsutils          : fournit dig pour récupérer l'IPv4
       # -------------------------------------------------------
       - name: Installer les dépendances
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client dnsutils
           echo "✅ pg_dump installé : $(pg_dump --version)"
 
       # -------------------------------------------------------
-      # ÉTAPE 2 — Créer le backup compressé
-      # Le fichier est nommé avec la date/heure exacte
+      # ÉTAPE 2 — Vérifier la présence du mot de passe Supabase
+      # -------------------------------------------------------
+      - name: Vérifier le secret PGPASSWORD
+        run: |
+          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "❌ Secret SUPABASE_DB_PASSWORD non défini"
+            exit 1
+          fi
+          echo "✅ Secret SUPABASE_DB_PASSWORD présent"
+
+      # -------------------------------------------------------
+      # ÉTAPE 3 — Récupérer l'adresse IPv4 du serveur Supabase
+      #            (pour éviter l'erreur "Network is unreachable")
+      # -------------------------------------------------------
+      - name: Récupérer l'IPv4 du serveur
+        id: get_ip
+        run: |
+          # Remplacer par le vrai nom d'hôte de votre projet Supabase
+          HOST="db.rrfbxvlzefyrlkeksmlb.supabase.co"
+          IPV4=$(dig +short "$HOST" A | head -1)
+          if [ -z "$IPV4" ]; then
+            echo "❌ Impossible de résoudre l'IPv4 de $HOST"
+            exit 1
+          fi
+          echo "IPV4=$IPV4" >> $GITHUB_OUTPUT
+          echo "✅ Adresse IPv4 trouvée : $IPV4"
+
+      # -------------------------------------------------------
+      # ÉTAPE 4 — Tester la connexion à la base avec psql
+      # -------------------------------------------------------
+      - name: Tester la connexion Supabase
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          psql -h ${{ steps.get_ip.outputs.IPV4 }} -p 5432 -U postgres -d postgres -c "SELECT 1"
+
+      # -------------------------------------------------------
+      # ÉTAPE 5 — Créer le backup compressé
       # -------------------------------------------------------
       - name: Créer le backup
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
 
-          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
-            --clean \
-            --if-exists \
-            --no-owner \
-            --no-privileges \
+          pg_dump -h ${{ steps.get_ip.outputs.IPV4 }} \
+                  -p 5432 \
+                  -U postgres \
+                  -d postgres \
+                  --clean \
+                  --if-exists \
+                  --no-owner \
+                  --no-privileges \
             | gzip > "$FILENAME"
 
-          # Vérifier que le fichier n'est pas vide (> 1Ko)
+          # Vérifier que le fichier n'est pas vide (> 1 Ko)
           SIZE=$(stat -c%s "$FILENAME")
           if [ "$SIZE" -lt 1024 ]; then
             echo "❌ Fichier backup suspect : seulement ${SIZE} octets"
-            echo "   Vérifier la connexion Supabase (SUPABASE_DB_URL)"
             exit 1
           fi
 
@@ -53,7 +94,7 @@ jobs:
           echo "✅ Backup créé : $FILENAME ($(du -sh $FILENAME | cut -f1))"
 
       # -------------------------------------------------------
-      # ÉTAPE 3 — Installer rclone
+      # ÉTAPE 6 — Installer rclone
       # -------------------------------------------------------
       - name: Installer rclone
         run: |
@@ -61,25 +102,7 @@ jobs:
           echo "✅ rclone installé : $(rclone version | head -1)"
 
       # -------------------------------------------------------
-      # ÉTAPE 4 — Configurer rclone avec Google Drive
-      #
-      # PRÉREQUIS (une seule fois) :
-      # 1. console.cloud.google.com → activer "Google Drive API"
-      # 2. IAM → Service Accounts → Créer → Générer clé JSON
-      # 3. Préparer le secret sur ton PC :
-      #      python3 -c "
-      #      import json
-      #      with open('credentials.json') as f: data = json.load(f)
-      #      print(json.dumps(data, separators=(',',':')))
-      #      "
-      #    Coller le résultat dans le secret GDRIVE_CREDENTIALS
-      # 4. Partager le dossier Drive avec l'email du compte de service
-      # 5. Copier l'ID du dossier (dans l'URL Drive) → GDRIVE_FOLDER_ID
-      #
-      # POURQUOI PYTHON ICI ?
-      # Le JSON contient une "private_key" avec des \n échappés.
-      # Python parse et réécrit proprement le JSON sans corrompre
-      # ces caractères spéciaux, contrairement à jq ou echo.
+      # ÉTAPE 7 — Configurer rclone avec Google Drive
       # -------------------------------------------------------
       - name: Configurer rclone (Google Drive)
         env:
@@ -87,8 +110,6 @@ jobs:
         run: |
           mkdir -p ~/.config/rclone
 
-          # Python reparse le JSON et le réécrit proprement sur disque
-          # Gère nativement les \n dans private_key sans corruption
           python3 -c "
           import json, os
           raw = os.environ['GDRIVE_CRED']
@@ -98,12 +119,6 @@ jobs:
           print('✅ JSON credentials valide')
           "
 
-          # Créer le fichier de configuration rclone
-          # [gdrive]               = nom de la connexion
-          # type = drive           = connecteur Google Drive
-          # scope = drive          = accès complet lecture/écriture
-          # service_account_file   = clé JSON du compte de service
-          # root_folder_id         = dossier Drive cible
           cat > ~/.config/rclone/rclone.conf << 'EOF'
           [gdrive]
           type = drive
@@ -112,14 +127,13 @@ jobs:
           root_folder_id = GDRIVE_FOLDER_ID_PLACEHOLDER
           EOF
 
-          # Injecter l'ID du dossier (impossible dans un heredoc 'EOF')
           sed -i "s|GDRIVE_FOLDER_ID_PLACEHOLDER|${{ secrets.GDRIVE_FOLDER_ID }}|g" \
             ~/.config/rclone/rclone.conf
 
           echo "✅ rclone configuré avec succès"
 
       # -------------------------------------------------------
-      # ÉTAPE 5 — Uploader le backup vers Google Drive
+      # ÉTAPE 8 — Uploader le backup vers Google Drive
       # -------------------------------------------------------
       - name: Uploader vers Google Drive
         run: |
@@ -128,8 +142,7 @@ jobs:
           echo "✅ Upload terminé"
 
       # -------------------------------------------------------
-      # ÉTAPE 6 — Supprimer les backups de plus de 30 jours
-      # Modifier --min-age selon tes besoins : 7d, 14d, 30d, 90d
+      # ÉTAPE 9 — Supprimer les backups de plus de 30 jours
       # -------------------------------------------------------
       - name: Supprimer les backups anciens
         run: |
@@ -138,13 +151,7 @@ jobs:
           echo "✅ Nettoyage terminé"
 
       # -------------------------------------------------------
-      # ÉTAPE 7 — Email d'alerte en cas d'échec uniquement
-      #
-      # SECRETS REQUIS :
-      # MAIL_USER     : adresse Gmail
-      # MAIL_PASSWORD : mot de passe d'application Gmail
-      #   ⚠️ Pas ton vrai mot de passe !
-      #   Créer sur : myaccount.google.com/apppasswords
+      # ÉTAPE 10 — Notification en cas d'échec uniquement
       # -------------------------------------------------------
       - name: Notification en cas d'échec
         if: failure()
