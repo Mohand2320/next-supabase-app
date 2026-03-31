@@ -35,13 +35,13 @@ jobs:
       - name: Tester la connexion Supabase
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGCLIENT_TIMEOUT: 10
         run: |
           psql \
             -h "db.rrfbxvlzefyrlkeksmlb.supabase.co" \
             -p 5432 \
             -U postgres \
             -d postgres \
-            --connect-timeout=10 \
             -c "SELECT 1 AS connection_ok"
           if [ $? -ne 0 ]; then
             echo "Échec de la connexion à Supabase"
@@ -52,6 +52,7 @@ jobs:
       - name: Créer le backup
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGCLIENT_TIMEOUT: 10
         run: |
           FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
           pg_dump \
