@@ -31,21 +31,34 @@ jobs:
     steps:
 
       # -------------------------------------------------------
-      # ÉTAPE 1 — Installer le client PostgreSQL (pg_dump)
-      # pg_dump est l'outil officiel pour exporter une base
-      # de données PostgreSQL (utilisé par Supabase)
+      # ÉTAPE 1 — Installer les outils nécessaires
+      # - postgresql-client : fournit pg_dump pour exporter la BDD
+      # - jq               : outil de manipulation JSON
+      #                      indispensable pour corriger les
+      #                      caractères mal échappés dans le JSON
+      #                      du compte de service Google
       # -------------------------------------------------------
-      - name: Installer pg_dump
+      - name: Installer les dépendances
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client jq
+          echo "✅ Dépendances installées : pg_dump $(pg_dump --version), jq $(jq --version)"
 
       # -------------------------------------------------------
       # ÉTAPE 2 — Créer le fichier de backup
-      # - Se connecte à Supabase via l'URL de connexion
+      # - Se connecte à Supabase via l'URL de connexion secrète
       # - Exporte toute la base en SQL
       # - Compresse le fichier avec gzip pour réduire la taille
       # - Nomme le fichier avec la date et l'heure exactes
+      #
+      # OPTIONS pg_dump :
+      # --clean         : ajoute des DROP avant les CREATE
+      #                   (utile pour restaurer proprement)
+      # --if-exists     : évite les erreurs si une table
+      #                   n'existe pas lors de la restauration
+      # --no-owner      : ignore les droits propriétaires
+      #                   (évite les erreurs de permissions)
+      # --no-privileges : ignore les GRANT/REVOKE
       # -------------------------------------------------------
       - name: Créer le backup
         run: |
@@ -54,10 +67,6 @@ jobs:
           FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
 
           # Lance l'export PostgreSQL et compresse à la volée
-          # --clean        : ajoute des DROP avant les CREATE
-          # --if-exists    : évite les erreurs si table n'existe pas
-          # --no-owner     : ignore les droits propriétaires
-          # --no-privileges: ignore les GRANT/REVOKE
           pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
             --clean \
             --if-exists \
@@ -79,7 +88,7 @@ jobs:
       - name: Installer rclone
         run: |
           curl https://rclone.org/install.sh | sudo bash
-          rclone version  # Affiche la version pour confirmer l'installation
+          echo "✅ rclone installé : $(rclone version | head -1)"
 
       # -------------------------------------------------------
       # ÉTAPE 4 — Configurer rclone avec Google Drive
@@ -88,34 +97,47 @@ jobs:
       # 1. Aller sur https://console.cloud.google.com
       # 2. Créer un projet → activer "Google Drive API"
       # 3. IAM → Service Accounts → Créer un compte de service
-      # 4. Générer une clé JSON → copier le contenu brut
-      #    dans le secret GitHub : GDRIVE_CREDENTIALS
-      # 5. Dans Google Drive, partager ton dossier backup
+      # 4. Générer une clé JSON
+      # 5. Sur ton terminal local, compacter le JSON en une ligne :
+      #       cat credentials.json | jq -c '.'
+      #    Copier ce résultat dans le secret : GDRIVE_CREDENTIALS
+      # 6. Dans Google Drive, partager ton dossier backup
       #    avec l'email du compte de service
       #    (ex: backup@mon-projet.iam.gserviceaccount.com)
-      # 6. Copier l'ID du dossier Drive (dans l'URL du dossier)
+      # 7. Copier l'ID du dossier Drive (dans l'URL du dossier)
       #    dans le secret GitHub : GDRIVE_FOLDER_ID
+      #    URL exemple : drive.google.com/drive/folders/[CET-ID]
+      #
+      # POURQUOI jq ICI ?
+      # Le JSON contient un champ "private_key" avec des \n
+      # qui peuvent se corrompre lors de l'injection shell.
+      # Passer par "jq '.'" reparse et réécrit le JSON
+      # proprement, corrigeant tous les caractères mal échappés.
       # -------------------------------------------------------
       - name: Configurer rclone (Google Drive)
         env:
-          # On passe le JSON via variable d'environnement
-          # pour éviter les problèmes d'échappement de caractères
+          # Passage du secret via variable d'environnement
+          # (plus sûr que l'injection directe dans le script)
           GDRIVE_CRED: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: |
           mkdir -p ~/.config/rclone
 
-          # Écrit le JSON du compte de service dans un fichier
-          # printf est plus fiable que echo pour les JSON multi-lignes
-          printf '%s' "$GDRIVE_CRED" > ~/.config/rclone/gdrive.json
+          # Écrire le JSON en le passant par jq pour corriger
+          # les caractères mal échappés (notamment \n dans private_key)
+          printf '%s' "$GDRIVE_CRED" | jq '.' > ~/.config/rclone/gdrive.json
 
-          # Valide que le JSON est bien formé avant de continuer
-          # Si invalide, le workflow s'arrête avec une erreur claire
+          # Valider que le JSON est bien formé avant de continuer
+          # Si invalide, le workflow s'arrête avec un message clair
           python3 -c "import json; json.load(open('/home/runner/.config/rclone/gdrive.json'))" \
             && echo "✅ JSON credentials valide" \
-            || (echo "❌ JSON credentials invalide — vérifier le secret GDRIVE_CREDENTIALS" && exit 1)
+            || (echo "❌ JSON invalide — vérifier le secret GDRIVE_CREDENTIALS (utiliser: cat credentials.json | jq -c '.')" && exit 1)
 
-          # Crée le fichier de configuration rclone
-          # [gdrive] est le nom qu'on donnera à cette connexion
+          # Créer le fichier de configuration rclone
+          # [gdrive] = nom de la connexion utilisée dans les commandes rclone
+          # type = drive → connecteur Google Drive
+          # scope = drive → accès complet (lecture + écriture)
+          # service_account_file → chemin vers le JSON du compte de service
+          # root_folder_id → ID du dossier Drive cible
           cat > ~/.config/rclone/rclone.conf << 'EOF'
           [gdrive]
           type = drive
@@ -124,7 +146,8 @@ jobs:
           root_folder_id = GDRIVE_FOLDER_ID_PLACEHOLDER
           EOF
 
-          # Injecte l'ID du dossier Drive dans la config
+          # Injecter l'ID du dossier Drive dans la config
+          # (ne peut pas être mis directement dans le heredoc 'EOF')
           sed -i "s|GDRIVE_FOLDER_ID_PLACEHOLDER|${{ secrets.GDRIVE_FOLDER_ID }}|g" \
             ~/.config/rclone/rclone.conf
 
@@ -139,13 +162,18 @@ jobs:
         run: |
           echo "📤 Upload de ${{ env.FILENAME }} vers Google Drive..."
           rclone copy "${{ env.FILENAME }}" gdrive:/
-          echo "✅ Upload terminé"
+          echo "✅ Upload terminé avec succès"
 
       # -------------------------------------------------------
       # ÉTAPE 6 — Nettoyage automatique des anciens backups
       # Supprime les fichiers de plus de 30 jours sur Drive
-      # pour éviter de saturer l'espace de stockage
-      # Modifier --min-age selon tes besoins (7d, 14d, 30d, 90d)
+      # pour éviter de saturer l'espace de stockage Google
+      #
+      # Modifier --min-age selon tes besoins :
+      # 7d  = garder 1 semaine d'historique
+      # 14d = garder 2 semaines
+      # 30d = garder 1 mois (recommandé)
+      # 90d = garder 3 mois
       # -------------------------------------------------------
       - name: Supprimer les backups de plus de 30 jours
         run: |
@@ -156,12 +184,16 @@ jobs:
       # -------------------------------------------------------
       # ÉTAPE 7 — Notification par email en cas d'échec
       # S'exécute UNIQUEMENT si une étape précédente a échoué
-      # 
+      # "if: failure()" garantit que cette étape est ignorée
+      # si tout s'est bien passé
+      #
       # SECRETS REQUIS :
       # - MAIL_USER     : adresse Gmail expéditrice
       # - MAIL_PASSWORD : mot de passe d'application Gmail
-      #   (à créer sur : myaccount.google.com/apppasswords)
       #   ⚠️ Ne pas utiliser ton mot de passe Gmail habituel !
+      #   Créer un mot de passe d'application sur :
+      #   myaccount.google.com/apppasswords
+      #   (nécessite la validation en 2 étapes activée)
       # -------------------------------------------------------
       - name: Notification en cas d'échec
         if: failure()
