@@ -1,72 +1,39 @@
 # ============================================================
 # WORKFLOW : Backup automatique Supabase → Google Drive
 # Fréquence : Tous les jours à 2h du matin (UTC)
-# Déclenchement manuel possible via GitHub Actions
 # ============================================================
 
 name: Supabase Backup to Google Drive
 
-# ---------------------------------------------------------
-# DÉCLENCHEURS DU WORKFLOW
-# ---------------------------------------------------------
 on:
   schedule:
-    # Syntaxe cron : minute heure jour mois jour_semaine
-    # '0 2 * * *' = à 2h00 UTC chaque jour
-    # Convertir selon ton fuseau : 2h UTC = 3h Paris, 4h Alger (été)
     - cron: '0 2 * * *'
-
-  # Permet de lancer le backup manuellement depuis
-  # GitHub → Actions → "Run workflow"
   workflow_dispatch:
 
-# ---------------------------------------------------------
-# DÉFINITION DU JOB PRINCIPAL
-# ---------------------------------------------------------
 jobs:
   backup:
-    # Utilise une machine virtuelle Ubuntu fournie par GitHub
     runs-on: ubuntu-latest
 
     steps:
 
       # -------------------------------------------------------
       # ÉTAPE 1 — Installer les outils nécessaires
-      # - postgresql-client : fournit pg_dump pour exporter la BDD
-      # - jq               : outil de manipulation JSON
-      #                      indispensable pour corriger les
-      #                      caractères mal échappés dans le JSON
-      #                      du compte de service Google
+      # postgresql-client : fournit pg_dump
       # -------------------------------------------------------
       - name: Installer les dépendances
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client jq
-          echo "✅ Dépendances installées : pg_dump $(pg_dump --version), jq $(jq --version)"
+          sudo apt-get install -y postgresql-client
+          echo "✅ pg_dump installé : $(pg_dump --version)"
 
       # -------------------------------------------------------
-      # ÉTAPE 2 — Créer le fichier de backup
-      # - Se connecte à Supabase via l'URL de connexion secrète
-      # - Exporte toute la base en SQL
-      # - Compresse le fichier avec gzip pour réduire la taille
-      # - Nomme le fichier avec la date et l'heure exactes
-      #
-      # OPTIONS pg_dump :
-      # --clean         : ajoute des DROP avant les CREATE
-      #                   (utile pour restaurer proprement)
-      # --if-exists     : évite les erreurs si une table
-      #                   n'existe pas lors de la restauration
-      # --no-owner      : ignore les droits propriétaires
-      #                   (évite les erreurs de permissions)
-      # --no-privileges : ignore les GRANT/REVOKE
+      # ÉTAPE 2 — Créer le backup compressé
+      # Le fichier est nommé avec la date/heure exacte
       # -------------------------------------------------------
       - name: Créer le backup
         run: |
-          # Génère un nom de fichier unique avec timestamp
-          # Exemple : backup_2026-03-31_02-00-00.sql.gz
           FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
 
-          # Lance l'export PostgreSQL et compresse à la volée
           pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
             --clean \
             --if-exists \
@@ -74,16 +41,19 @@ jobs:
             --no-privileges \
             | gzip > "$FILENAME"
 
-          # Sauvegarde le nom du fichier pour les étapes suivantes
-          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+          # Vérifier que le fichier n'est pas vide (> 1Ko)
+          SIZE=$(stat -c%s "$FILENAME")
+          if [ "$SIZE" -lt 1024 ]; then
+            echo "❌ Fichier backup suspect : seulement ${SIZE} octets"
+            echo "   Vérifier la connexion Supabase (SUPABASE_DB_URL)"
+            exit 1
+          fi
 
-          # Affiche la taille du fichier généré dans les logs
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
           echo "✅ Backup créé : $FILENAME ($(du -sh $FILENAME | cut -f1))"
 
       # -------------------------------------------------------
       # ÉTAPE 3 — Installer rclone
-      # rclone est un outil qui permet de transférer des fichiers
-      # vers des services cloud (Google Drive, S3, Dropbox, etc.)
       # -------------------------------------------------------
       - name: Installer rclone
         run: |
@@ -93,51 +63,47 @@ jobs:
       # -------------------------------------------------------
       # ÉTAPE 4 — Configurer rclone avec Google Drive
       #
-      # PRÉREQUIS (à faire une seule fois) :
-      # 1. Aller sur https://console.cloud.google.com
-      # 2. Créer un projet → activer "Google Drive API"
-      # 3. IAM → Service Accounts → Créer un compte de service
-      # 4. Générer une clé JSON
-      # 5. Sur ton terminal local, compacter le JSON en une ligne :
-      #       cat credentials.json | jq -c '.'
-      #    Copier ce résultat dans le secret : GDRIVE_CREDENTIALS
-      # 6. Dans Google Drive, partager ton dossier backup
-      #    avec l'email du compte de service
-      #    (ex: backup@mon-projet.iam.gserviceaccount.com)
-      # 7. Copier l'ID du dossier Drive (dans l'URL du dossier)
-      #    dans le secret GitHub : GDRIVE_FOLDER_ID
-      #    URL exemple : drive.google.com/drive/folders/[CET-ID]
+      # PRÉREQUIS (une seule fois) :
+      # 1. console.cloud.google.com → activer "Google Drive API"
+      # 2. IAM → Service Accounts → Créer → Générer clé JSON
+      # 3. Préparer le secret sur ton PC :
+      #      python3 -c "
+      #      import json
+      #      with open('credentials.json') as f: data = json.load(f)
+      #      print(json.dumps(data, separators=(',',':')))
+      #      "
+      #    Coller le résultat dans le secret GDRIVE_CREDENTIALS
+      # 4. Partager le dossier Drive avec l'email du compte de service
+      # 5. Copier l'ID du dossier (dans l'URL Drive) → GDRIVE_FOLDER_ID
       #
-      # POURQUOI jq ICI ?
-      # Le JSON contient un champ "private_key" avec des \n
-      # qui peuvent se corrompre lors de l'injection shell.
-      # Passer par "jq '.'" reparse et réécrit le JSON
-      # proprement, corrigeant tous les caractères mal échappés.
+      # POURQUOI PYTHON ICI ?
+      # Le JSON contient une "private_key" avec des \n échappés.
+      # Python parse et réécrit proprement le JSON sans corrompre
+      # ces caractères spéciaux, contrairement à jq ou echo.
       # -------------------------------------------------------
       - name: Configurer rclone (Google Drive)
         env:
-          # Passage du secret via variable d'environnement
-          # (plus sûr que l'injection directe dans le script)
           GDRIVE_CRED: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: |
           mkdir -p ~/.config/rclone
 
-          # Écrire le JSON en le passant par jq pour corriger
-          # les caractères mal échappés (notamment \n dans private_key)
-          printf '%s' "$GDRIVE_CRED" | jq '.' > ~/.config/rclone/gdrive.json
-
-          # Valider que le JSON est bien formé avant de continuer
-          # Si invalide, le workflow s'arrête avec un message clair
-          python3 -c "import json; json.load(open('/home/runner/.config/rclone/gdrive.json'))" \
-            && echo "✅ JSON credentials valide" \
-            || (echo "❌ JSON invalide — vérifier le secret GDRIVE_CREDENTIALS (utiliser: cat credentials.json | jq -c '.')" && exit 1)
+          # Python reparse le JSON et le réécrit proprement sur disque
+          # Gère nativement les \n dans private_key sans corruption
+          python3 -c "
+          import json, os
+          raw = os.environ['GDRIVE_CRED']
+          data = json.loads(raw)
+          with open('/home/runner/.config/rclone/gdrive.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          print('✅ JSON credentials valide')
+          "
 
           # Créer le fichier de configuration rclone
-          # [gdrive] = nom de la connexion utilisée dans les commandes rclone
-          # type = drive → connecteur Google Drive
-          # scope = drive → accès complet (lecture + écriture)
-          # service_account_file → chemin vers le JSON du compte de service
-          # root_folder_id → ID du dossier Drive cible
+          # [gdrive]               = nom de la connexion
+          # type = drive           = connecteur Google Drive
+          # scope = drive          = accès complet lecture/écriture
+          # service_account_file   = clé JSON du compte de service
+          # root_folder_id         = dossier Drive cible
           cat > ~/.config/rclone/rclone.conf << 'EOF'
           [gdrive]
           type = drive
@@ -146,54 +112,39 @@ jobs:
           root_folder_id = GDRIVE_FOLDER_ID_PLACEHOLDER
           EOF
 
-          # Injecter l'ID du dossier Drive dans la config
-          # (ne peut pas être mis directement dans le heredoc 'EOF')
+          # Injecter l'ID du dossier (impossible dans un heredoc 'EOF')
           sed -i "s|GDRIVE_FOLDER_ID_PLACEHOLDER|${{ secrets.GDRIVE_FOLDER_ID }}|g" \
             ~/.config/rclone/rclone.conf
 
           echo "✅ rclone configuré avec succès"
 
       # -------------------------------------------------------
-      # ÉTAPE 5 — Uploader le fichier vers Google Drive
-      # rclone copy : copie le fichier local vers le dossier Drive
-      # Le fichier sera visible dans le dossier partagé
+      # ÉTAPE 5 — Uploader le backup vers Google Drive
       # -------------------------------------------------------
       - name: Uploader vers Google Drive
         run: |
-          echo "📤 Upload de ${{ env.FILENAME }} vers Google Drive..."
+          echo "📤 Upload de ${{ env.FILENAME }}..."
           rclone copy "${{ env.FILENAME }}" gdrive:/
-          echo "✅ Upload terminé avec succès"
+          echo "✅ Upload terminé"
 
       # -------------------------------------------------------
-      # ÉTAPE 6 — Nettoyage automatique des anciens backups
-      # Supprime les fichiers de plus de 30 jours sur Drive
-      # pour éviter de saturer l'espace de stockage Google
-      #
-      # Modifier --min-age selon tes besoins :
-      # 7d  = garder 1 semaine d'historique
-      # 14d = garder 2 semaines
-      # 30d = garder 1 mois (recommandé)
-      # 90d = garder 3 mois
+      # ÉTAPE 6 — Supprimer les backups de plus de 30 jours
+      # Modifier --min-age selon tes besoins : 7d, 14d, 30d, 90d
       # -------------------------------------------------------
-      - name: Supprimer les backups de plus de 30 jours
+      - name: Supprimer les backups anciens
         run: |
           echo "🧹 Nettoyage des backups de plus de 30 jours..."
           rclone delete gdrive:/ --min-age 30d
           echo "✅ Nettoyage terminé"
 
       # -------------------------------------------------------
-      # ÉTAPE 7 — Notification par email en cas d'échec
-      # S'exécute UNIQUEMENT si une étape précédente a échoué
-      # "if: failure()" garantit que cette étape est ignorée
-      # si tout s'est bien passé
+      # ÉTAPE 7 — Email d'alerte en cas d'échec uniquement
       #
       # SECRETS REQUIS :
-      # - MAIL_USER     : adresse Gmail expéditrice
-      # - MAIL_PASSWORD : mot de passe d'application Gmail
-      #   ⚠️ Ne pas utiliser ton mot de passe Gmail habituel !
-      #   Créer un mot de passe d'application sur :
-      #   myaccount.google.com/apppasswords
-      #   (nécessite la validation en 2 étapes activée)
+      # MAIL_USER     : adresse Gmail
+      # MAIL_PASSWORD : mot de passe d'application Gmail
+      #   ⚠️ Pas ton vrai mot de passe !
+      #   Créer sur : myaccount.google.com/apppasswords
       # -------------------------------------------------------
       - name: Notification en cas d'échec
         if: failure()
