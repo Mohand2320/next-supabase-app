@@ -33,7 +33,7 @@ jobs:
       - name: Configurer rclone (Google Drive)
         run: |
           mkdir -p ~/.config/rclone
-          cat <<EOF > ~/.config/rclone/rclone.conf
+          cat <<'EOF' > ~/.config/rclone/rclone.conf
           [gdrive]
           type = drive
           scope = drive
@@ -60,3 +60,4 @@ jobs:
           subject: "❌ Backup DentiPro échoué"
           body: "Le backup automatique de la base de données DentiPro a échoué. Vérifier les logs GitHub Actions."
           to: ${{ secrets.MAIL_USER }}
+          from: "DentiPro Backup <${{ secrets.MAIL_USER }}>"
