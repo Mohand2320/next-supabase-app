@@ -1,4 +1,4 @@
-name: Supabase Backup to Google Drive
+name: Supabase Backup
 
 on:
   schedule:
@@ -19,21 +19,15 @@ jobs:
           sudo apt-get install -y postgresql-client-17 dnsutils
           echo "✅ pg_dump : $(/usr/lib/postgresql/17/bin/pg_dump --version)"
 
-      - name: Vérifier les secrets
+      - name: Vérifier le secret de Base de Données
         env:
           CHECK_DB: ${{ secrets.SUPABASE_DB_URL }}
-          CHECK_GD: ${{ secrets.GDRIVE_CREDENTIALS }}
-          CHECK_FO: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          MISSING=""
-          [ -z "$CHECK_DB" ] && MISSING="$MISSING SUPABASE_DB_URL"
-          [ -z "$CHECK_GD" ] && MISSING="$MISSING GDRIVE_CREDENTIALS"
-          [ -z "$CHECK_FO" ] && MISSING="$MISSING GDRIVE_FOLDER_ID"
-          if [ -n "$MISSING" ]; then
-            echo "Secrets manquants :$MISSING"
+          if [ -z "$CHECK_DB" ]; then
+            echo "Secret manquant : SUPABASE_DB_URL"
             exit 1
           fi
-          echo "Tous les secrets sont présents"
+          echo "Le secret est présent."
 
       - name: Tester la connexion Supabase
         env:
@@ -65,32 +59,12 @@ jobs:
           echo "FILENAME=$FILENAME" >> "$GITHUB_ENV"
           echo "Backup créé : $FILENAME"
 
-      - name: Installer rclone
-        run: |
-          curl -fsSL https://rclone.org/install.sh | sudo bash
-          echo "rclone : $(rclone version | head -1)"
-
-      - name: Configurer rclone (Google Drive)
-        env:
-          GDRIVE_CRED: ${{ secrets.GDRIVE_CREDENTIALS }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
-        run: |
-          CLEAN_FOLDER_ID=$(echo "$GDRIVE_FOLDER_ID" | tr -d '[:space:]')
-          mkdir -p ~/.config/rclone
-          echo "$GDRIVE_CRED" > ~/.config/rclone/gdrive.json
-          python3 -c "import json,sys; json.load(open('/home/runner/.config/rclone/gdrive.json')) and print('JSON valide')" || { echo "JSON credentials invalide"; exit 1; }
-          printf '[gdrive]\ntype = drive\nscope = drive\nservice_account_file = /home/runner/.config/rclone/gdrive.json\nroot_folder_id = %s\n' "$CLEAN_FOLDER_ID" > ~/.config/rclone/rclone.conf
-          rclone lsd gdrive:/ --max-depth 1 || echo "⚠️ Liste du dossier impossible (normal s'il est vide ou permissions incomplètes)"
-
-      - name: Uploader vers Google Drive
-        run: |
-          rclone copy "${{ env.FILENAME }}" gdrive:/ --progress
-          echo "Upload terminé"
-
-      - name: Supprimer les backups anciens
-        run: |
-          rclone delete gdrive:/ --min-age 30d --include "backup_*.sql.gz"
-          echo "Nettoyage terminé"
+      - name: Stocker dans GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILENAME }}
+          path: ${{ env.FILENAME }}
+          retention-days: 30
 
       - name: Notification en cas d'échec
         if: failure()
