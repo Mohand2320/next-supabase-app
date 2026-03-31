@@ -31,13 +31,16 @@ jobs:
           curl https://rclone.org/install.sh | sudo bash
 
       - name: Configurer rclone (Google Drive)
+        env:
+          GDRIVE_CRED: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: |
           mkdir -p ~/.config/rclone
-          cat <<'EOF' > ~/.config/rclone/rclone.conf
+          echo "$GDRIVE_CRED" > ~/.config/rclone/gdrive.json
+          cat <<EOF > ~/.config/rclone/rclone.conf
           [gdrive]
           type = drive
           scope = drive
-          service_account_credentials = ${{ secrets.GDRIVE_CREDENTIALS }}
+          service_account_file = /home/runner/.config/rclone/gdrive.json
           root_folder_id = ${{ secrets.GDRIVE_FOLDER_ID }}
           EOF
 
