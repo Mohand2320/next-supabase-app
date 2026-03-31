@@ -2,8 +2,8 @@ name: Supabase Backup to Google Drive
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Tous les jours à 2h du matin (UTC)
-  workflow_dispatch:       # Déclenchement manuel possible
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
   backup:
@@ -31,12 +31,15 @@ jobs:
           curl https://rclone.org/install.sh | sudo bash
 
       - name: Configurer rclone (Google Drive)
-        env:
-          GDRIVE_CRED: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: |
           mkdir -p ~/.config/rclone
-          echo "$GDRIVE_CRED" > ~/.config/rclone/gdrive.json
-          cat <<EOF > ~/.config/rclone/rclone.conf
+
+          echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > ~/.config/rclone/gdrive.json
+
+          python3 -c "import json; json.load(open('/home/runner/.config/rclone/gdrive.json'))" \
+            && echo "✅ JSON valide" || (echo "❌ JSON invalide" && exit 1)
+
+          cat > ~/.config/rclone/rclone.conf << EOF
           [gdrive]
           type = drive
           scope = drive
@@ -46,7 +49,7 @@ jobs:
 
       - name: Uploader vers Google Drive
         run: |
-          rclone copy ${{ env.FILENAME }} gdrive:/
+          rclone copy "${{ env.FILENAME }}" gdrive:/
 
       - name: Supprimer les backups de plus de 30 jours
         run: |
