@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Installer les dépendances
         run: |
           sudo apt-get update
@@ -31,37 +30,24 @@ jobs:
             echo "Secrets manquants :$MISSING"
             exit 1
           fi
-          echo "Tous les secrets sont presents"
-
-      - name: Récupérer l'IPv4 du serveur
-        id: get_ip
-        run: |
-          HOST="db.rrfbxvlzefyrlkeksmlb.supabase.co"
-          IPV4=$(dig +short "$HOST" A 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
-          if [ -z "$IPV4" ]; then
-            IPV4=$(getent hosts "$HOST" 2>/dev/null | awk '{print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
-          fi
-          if [ -z "$IPV4" ]; then
-            IPV4=$(python3 -c "import socket; r=socket.getaddrinfo('$HOST',5432,socket.AF_INET); print(r[0][4][0])" 2>/dev/null || true)
-          fi
-          if [ -z "$IPV4" ]; then
-            echo "Impossible de resoudre l IPv4 de $HOST"
-            exit 1
-          fi
-          echo "IPV4=$IPV4" >> "$GITHUB_OUTPUT"
-          echo "IPv4 resolue : $IPV4"
+          echo "Tous les secrets sont présents"
 
       - name: Tester la connexion Supabase
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           psql \
-            -h "${{ steps.get_ip.outputs.IPV4 }}" \
+            -h "db.rrfbxvlzefyrlkeksmlb.supabase.co" \
             -p 5432 \
             -U postgres \
             -d postgres \
             --connect-timeout=10 \
             -c "SELECT 1 AS connection_ok"
+          if [ $? -ne 0 ]; then
+            echo "Échec de la connexion à Supabase"
+            exit 1
+          fi
+          echo "Connexion à Supabase réussie"
 
       - name: Créer le backup
         env:
@@ -69,7 +55,7 @@ jobs:
         run: |
           FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
           pg_dump \
-            -h "${{ steps.get_ip.outputs.IPV4 }}" \
+            -h "db.rrfbxvlzefyrlkeksmlb.supabase.co" \
             -p 5432 \
             -U postgres \
             -d postgres \
@@ -84,7 +70,7 @@ jobs:
             exit 1
           fi
           echo "FILENAME=$FILENAME" >> "$GITHUB_ENV"
-          echo "Backup cree : $FILENAME"
+          echo "Backup créé : $FILENAME"
 
       - name: Installer rclone
         run: |
@@ -105,12 +91,12 @@ jobs:
       - name: Uploader vers Google Drive
         run: |
           rclone copy "${{ env.FILENAME }}" gdrive:/ --progress
-          echo "Upload termine"
+          echo "Upload terminé"
 
       - name: Supprimer les backups anciens
         run: |
           rclone delete gdrive:/ --min-age 30d --include "backup_*.sql.gz"
-          echo "Nettoyage termine"
+          echo "Nettoyage terminé"
 
       - name: Notification en cas d'échec
         if: failure()
@@ -120,7 +106,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USER }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "Backup DentiPro echoue"
-          body: "Le backup automatique a echoue. Verifier les logs GitHub Actions."
+          subject: "Backup Supabase échoué"
+          body: "Le backup automatique a échoué. Vérifiez les logs GitHub Actions."
           to: ${{ secrets.MAIL_USER }}
-          from: "DentiPro Backup <${{ secrets.MAIL_USER }}>"
+          from: "Supabase Backup <${{ secrets.MAIL_USER }}>"
