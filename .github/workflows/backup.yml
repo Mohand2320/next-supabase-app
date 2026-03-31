@@ -18,8 +18,6 @@ jobs:
 
       # -------------------------------------------------------
       # ÉTAPE 1 — Installer les outils nécessaires
-      # postgresql-client : fournit pg_dump et psql
-      # dnsutils          : fournit dig pour récupérer l'IPv4
       # -------------------------------------------------------
       - name: Installer les dépendances
         run: |
@@ -28,32 +26,55 @@ jobs:
           echo "✅ pg_dump installé : $(pg_dump --version)"
 
       # -------------------------------------------------------
-      # ÉTAPE 2 — Vérifier la présence du mot de passe Supabase
+      # ÉTAPE 2 — Vérifier la présence des secrets nécessaires
       # -------------------------------------------------------
-      - name: Vérifier le secret PGPASSWORD
+      - name: Vérifier les secrets
         run: |
-          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
-            echo "❌ Secret SUPABASE_DB_PASSWORD non défini"
+          MISSING=""
+          [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ] && MISSING="$MISSING SUPABASE_DB_PASSWORD"
+          [ -z "${{ secrets.GDRIVE_CREDENTIALS }}"  ] && MISSING="$MISSING GDRIVE_CREDENTIALS"
+          [ -z "${{ secrets.GDRIVE_FOLDER_ID }}"    ] && MISSING="$MISSING GDRIVE_FOLDER_ID"
+          if [ -n "$MISSING" ]; then
+            echo "❌ Secrets manquants :$MISSING"
             exit 1
           fi
-          echo "✅ Secret SUPABASE_DB_PASSWORD présent"
+          echo "✅ Tous les secrets sont présents"
 
       # -------------------------------------------------------
-      # ÉTAPE 3 — Récupérer l'adresse IPv4 du serveur Supabase
-      #            (pour éviter l'erreur "Network is unreachable")
+      # ÉTAPE 3 — Résoudre l'IPv4 du serveur Supabase
+      #   FIX : on essaie dig A, puis getent, puis python3
+      #         pour gérer les cas où dig renvoie du CNAME/IPv6
       # -------------------------------------------------------
       - name: Récupérer l'IPv4 du serveur
         id: get_ip
         run: |
-          # Remplacer par le vrai nom d'hôte de votre projet Supabase
           HOST="db.rrfbxvlzefyrlkeksmlb.supabase.co"
-          IPV4=$(dig +short "$HOST" A | head -1)
+
+          # Tentative 1 : dig (filtre strictement les lignes IPv4)
+          IPV4=$(dig +short "$HOST" A 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+
+          # Tentative 2 : getent hosts (résolution système)
           if [ -z "$IPV4" ]; then
-            echo "❌ Impossible de résoudre l'IPv4 de $HOST"
+            IPV4=$(getent hosts "$HOST" 2>/dev/null | awk '{print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+          fi
+
+          # Tentative 3 : python3 socket (résolution DNS native)
+          if [ -z "$IPV4" ]; then
+            IPV4=$(python3 -c "
+          import socket
+          results = socket.getaddrinfo('$HOST', 5432, socket.AF_INET)
+          print(results[0][4][0])
+          " 2>/dev/null || true)
+          fi
+
+          if [ -z "$IPV4" ]; then
+            echo "❌ Impossible de résoudre l'IPv4 de $HOST (toutes méthodes épuisées)"
+            echo "ℹ️  Conseil : vérifiez que le projet Supabase est actif et que le hostname est correct"
             exit 1
           fi
+
           echo "IPV4=$IPV4" >> $GITHUB_OUTPUT
-          echo "✅ Adresse IPv4 trouvée : $IPV4"
+          echo "✅ Adresse IPv4 résolue : $IPV4"
 
       # -------------------------------------------------------
       # ÉTAPE 4 — Tester la connexion à la base avec psql
@@ -62,7 +83,14 @@ jobs:
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          psql -h ${{ steps.get_ip.outputs.IPV4 }} -p 5432 -U postgres -d postgres -c "SELECT 1"
+          echo "🔌 Test de connexion sur ${{ steps.get_ip.outputs.IPV4 }}:5432..."
+          psql -h "${{ steps.get_ip.outputs.IPV4 }}" \
+               -p 5432 \
+               -U postgres \
+               -d postgres \
+               --connect-timeout=10 \
+               -c "SELECT 1 AS connection_ok"
+          echo "✅ Connexion réussie"
 
       # -------------------------------------------------------
       # ÉTAPE 5 — Créer le backup compressé
@@ -73,7 +101,7 @@ jobs:
         run: |
           FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
 
-          pg_dump -h ${{ steps.get_ip.outputs.IPV4 }} \
+          pg_dump -h "${{ steps.get_ip.outputs.IPV4 }}" \
                   -p 5432 \
                   -U postgres \
                   -d postgres \
@@ -91,14 +119,14 @@ jobs:
           fi
 
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
-          echo "✅ Backup créé : $FILENAME ($(du -sh $FILENAME | cut -f1))"
+          echo "✅ Backup créé : $FILENAME ($(du -sh "$FILENAME" | cut -f1))"
 
       # -------------------------------------------------------
       # ÉTAPE 6 — Installer rclone
       # -------------------------------------------------------
       - name: Installer rclone
         run: |
-          curl https://rclone.org/install.sh | sudo bash
+          curl -fsSL https://rclone.org/install.sh | sudo bash
           echo "✅ rclone installé : $(rclone version | head -1)"
 
       # -------------------------------------------------------
@@ -110,27 +138,37 @@ jobs:
         run: |
           mkdir -p ~/.config/rclone
 
-          python3 -c "
-          import json, os
-          raw = os.environ['GDRIVE_CRED']
-          data = json.loads(raw)
+          python3 - <<'PYEOF'
+          import json, os, sys
+          raw = os.environ.get('GDRIVE_CRED', '')
+          if not raw:
+              print("❌ GDRIVE_CREDENTIALS est vide")
+              sys.exit(1)
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as e:
+              print(f"❌ JSON invalide : {e}")
+              sys.exit(1)
           with open('/home/runner/.config/rclone/gdrive.json', 'w') as f:
               json.dump(data, f, indent=2)
-          print('✅ JSON credentials valide')
-          "
+          print("✅ Fichier credentials Google Drive écrit avec succès")
+          PYEOF
 
+          # FIX : heredoc sans indentation pour éviter les espaces parasites
           cat > ~/.config/rclone/rclone.conf << 'EOF'
-          [gdrive]
-          type = drive
-          scope = drive
-          service_account_file = /home/runner/.config/rclone/gdrive.json
-          root_folder_id = GDRIVE_FOLDER_ID_PLACEHOLDER
-          EOF
+[gdrive]
+type = drive
+scope = drive
+service_account_file = /home/runner/.config/rclone/gdrive.json
+root_folder_id = GDRIVE_FOLDER_ID_PLACEHOLDER
+EOF
 
           sed -i "s|GDRIVE_FOLDER_ID_PLACEHOLDER|${{ secrets.GDRIVE_FOLDER_ID }}|g" \
             ~/.config/rclone/rclone.conf
 
-          echo "✅ rclone configuré avec succès"
+          # Vérifier que rclone peut lister le dossier Drive
+          rclone lsd gdrive:/ --max-depth 1 && echo "✅ Connexion Google Drive OK" \
+            || { echo "❌ rclone ne peut pas accéder à Google Drive"; exit 1; }
 
       # -------------------------------------------------------
       # ÉTAPE 8 — Uploader le backup vers Google Drive
@@ -138,7 +176,7 @@ jobs:
       - name: Uploader vers Google Drive
         run: |
           echo "📤 Upload de ${{ env.FILENAME }}..."
-          rclone copy "${{ env.FILENAME }}" gdrive:/
+          rclone copy "${{ env.FILENAME }}" gdrive:/ --progress
           echo "✅ Upload terminé"
 
       # -------------------------------------------------------
@@ -147,7 +185,7 @@ jobs:
       - name: Supprimer les backups anciens
         run: |
           echo "🧹 Nettoyage des backups de plus de 30 jours..."
-          rclone delete gdrive:/ --min-age 30d
+          rclone delete gdrive:/ --min-age 30d --include "backup_*.sql.gz"
           echo "✅ Nettoyage terminé"
 
       # -------------------------------------------------------
