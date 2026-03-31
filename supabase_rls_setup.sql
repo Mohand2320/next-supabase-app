@@ -70,3 +70,55 @@ USING (
 
 -- 4. Verify RLS status
 -- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public';
+
+
+
+-- backup 31/03/2026
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.appointments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  patient_id uuid NOT NULL,
+  practitioner_id uuid NOT NULL,
+  start_time timestamp with time zone NOT NULL,
+  end_time timestamp with time zone NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'pending'::appointment_status,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT appointments_pkey PRIMARY KEY (id),
+  CONSTRAINT appointments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
+  CONSTRAINT appointments_practitioner_id_fkey FOREIGN KEY (practitioner_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.patients (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  date_of_birth date,
+  gender text CHECK (gender = ANY (ARRAY['M'::text, 'F'::text, 'Other'::text])),
+  phone text,
+  email text,
+  address text,
+  allergies text,
+  medical_history text,
+  internal_notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  user_id uuid,
+  CONSTRAINT patients_pkey PRIMARY KEY (id),
+  CONSTRAINT patients_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.treatments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  patient_id uuid NOT NULL,
+  date timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  treatment_type text NOT NULL,
+  tooth_number text,
+  description text,
+  cost numeric NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT treatments_pkey PRIMARY KEY (id),
+  CONSTRAINT treatments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+-------------------------------------------------------------------------------
