@@ -18,12 +18,12 @@ jobs:
 
       - name: Vérifier les secrets
         env:
-          CHECK_DB: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          CHECK_DB: ${{ secrets.SUPABASE_DB_URL }}
           CHECK_GD: ${{ secrets.GDRIVE_CREDENTIALS }}
           CHECK_FO: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
           MISSING=""
-          [ -z "$CHECK_DB" ] && MISSING="$MISSING SUPABASE_DB_PASSWORD"
+          [ -z "$CHECK_DB" ] && MISSING="$MISSING SUPABASE_DB_URL"
           [ -z "$CHECK_GD" ] && MISSING="$MISSING GDRIVE_CREDENTIALS"
           [ -z "$CHECK_FO" ] && MISSING="$MISSING GDRIVE_FOLDER_ID"
           if [ -n "$MISSING" ]; then
@@ -34,15 +34,9 @@ jobs:
 
       - name: Tester la connexion Supabase
         env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGCLIENT_TIMEOUT: 10
         run: |
-          psql \
-            -h "db.rrfbxvlzefyrlkeksmlb.supabase.co" \
-            -p 5432 \
-            -U postgres \
-            -d postgres \
-            -c "SELECT 1 AS connection_ok"
+          psql "${{ secrets.SUPABASE_DB_URL }}" -c "SELECT 1 AS connection_ok"
           if [ $? -ne 0 ]; then
             echo "Échec de la connexion à Supabase"
             exit 1
@@ -51,15 +45,10 @@ jobs:
 
       - name: Créer le backup
         env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGCLIENT_TIMEOUT: 10
         run: |
           FILENAME="backup_$(date +%Y-%m-%d_%H-%M-%S).sql.gz"
-          pg_dump \
-            -h "db.rrfbxvlzefyrlkeksmlb.supabase.co" \
-            -p 5432 \
-            -U postgres \
-            -d postgres \
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
             --clean \
             --if-exists \
             --no-owner \
