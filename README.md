@@ -1,6 +1,21 @@
-# Next.js 16 + Supabase Security App
+# 🏥 DentiPro - Next.js 16 + Supabase Security App
 
-Une application Next.js 16 moderne, performante et ultra-sécurisée utilisant Supabase pour l'authentification et la base de données.
+Une application Next.js 16 moderne, performante et ultra-sécurisée utilisant Supabase pour l'authentification et la gestion des patients dentaires.
+
+## 🚀 Démarrage rapide
+
+⚡ **Nouveau(elle)? Commencez ici:**
+```bash
+npm install
+npm run env:dev    # Configure l'environnement DEV
+npm run dev        # Lance le serveur local
+```
+
+📚 **Documentation:**
+- [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) - 📖 Index complet de la documentation
+- [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - ⚡ Commandes essentielles
+- [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md) - 🔧 Configuration DEV/PROD
+- [INSTALLATION_CHECKLIST.md](./INSTALLATION_CHECKLIST.md) - 📋 Checklist complète
 
 ## 🛡️ Architecture de Sécurité
 
