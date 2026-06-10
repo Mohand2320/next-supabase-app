@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "env:dev": "node scripts/switch-env.js dev",
+    "env:prod": "node scripts/switch-env.js prod",
+    "env:show": "node scripts/switch-env.js show"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
