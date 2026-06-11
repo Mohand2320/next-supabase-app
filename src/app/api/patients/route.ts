@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
     const { data: patientData, error: insertError } = await supabase
       .from('patients')
-      .insert([{ ...dbPayload, created_by: user.id }])
+      .insert([{ ...dbPayload }])
       .select()
       .single();
 
