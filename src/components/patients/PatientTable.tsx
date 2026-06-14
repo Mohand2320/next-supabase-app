@@ -121,46 +121,60 @@ export function PatientTable({
         </table>
       </div>
 
-      <div className="divide-y divide-slate-100 lg:hidden">
+      <div className="grid grid-cols-1 gap-4 p-4 lg:hidden">
         {patients.map((patient) => (
-          <article key={patient.id} className="p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">{patient.last_name} {patient.first_name}</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  {getGenderLabel(patient.gender)} · Né(e) le {formatDate(patient.date_of_birth)}
-                </p>
+          <article key={patient.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                <Users className="h-6 w-6" />
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => onView(patient.id)} className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600" aria-label="Voir">
-                  <Eye className="h-4 w-4" />
-                </button>
-                <button onClick={() => onEdit(patient.id)} className="rounded-lg p-2 text-slate-500 transition hover:bg-amber-50 hover:text-amber-600" aria-label="Modifier">
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(patient.id)}
-                  disabled={deletingId === patient.id}
-                  className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label="Supprimer"
-                >
-                  {deletingId === patient.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                </button>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-slate-900">{patient.last_name} {patient.first_name}</h3>
+                <div className="mt-1 flex flex-col gap-0.5 text-sm text-slate-600">
+                  <span className="font-medium text-slate-700">{getGenderLabel(patient.gender)}</span>
+                  <span>Né(e) le : {formatDate(patient.date_of_birth)}</span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-600 sm:grid-cols-2">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-slate-400" />
-                <span>{patient.phone || '—'}</span>
+            <div className="mt-5 space-y-3 rounded-xl bg-slate-50 p-4">
+              <div className="flex items-center gap-3 text-sm text-slate-700">
+                <Phone className="h-5 w-5 text-slate-400" />
+                <span className="font-medium">{patient.phone || '—'}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-slate-400" />
-                <span className="truncate">{patient.email || '—'}</span>
+              <div className="flex items-center gap-3 text-sm text-slate-700">
+                <Mail className="h-5 w-5 text-slate-400" />
+                <span className="truncate font-medium">{patient.email || '—'}</span>
               </div>
-              <div className="sm:col-span-2 text-slate-500">
-                Créé le {formatDate(patient.created_at)}
-              </div>
+            </div>
+
+            <div className="mt-4 text-xs font-medium text-slate-500">
+              Créé le {formatDate(patient.created_at)}
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              <button
+                onClick={() => onView(patient.id)}
+                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                <Eye className="h-4 w-4" />
+                Voir
+              </button>
+              <button
+                onClick={() => onEdit(patient.id)}
+                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-50 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+              >
+                <Edit2 className="h-4 w-4" />
+                Modif.
+              </button>
+              <button
+                onClick={() => onDelete(patient.id)}
+                disabled={deletingId === patient.id}
+                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-rose-50 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingId === patient.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Suppr.
+              </button>
             </div>
           </article>
         ))}

@@ -75,7 +75,6 @@ export default function NewPatientPage() {
                   <option value="">— Sélectionner —</option>
                   <option value="M">Homme</option>
                   <option value="F">Femme</option>
-                  <option value="Other">Autre</option>
                 </select>
               </div>
             </div>

@@ -93,14 +93,15 @@ function PatientsContent() {
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md sm:h-16 sm:px-8">
         <div>
           <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Patients</h2>
-          <p className="text-sm text-slate-500">Recherche, filtres, tri et pagination côté base de données</p>
+
         </div>
 
         <button
           onClick={() => router.push('/dashboard/patients/new')}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700"
+          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 sm:px-4"
+          aria-label="Nouveau Patient"
         >
-          <UserPlus className="h-4 w-4" />
+          <UserPlus className="h-5 w-5 sm:h-4 sm:w-4" />
           <span className="hidden sm:inline">Nouveau Patient</span>
         </button>
       </header>
