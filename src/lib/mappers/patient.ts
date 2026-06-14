@@ -1,7 +1,7 @@
 export const apiToDb = (obj: any) => {
   const mapped: any = {};
-  if (obj.first_name !== undefined) mapped.nom = obj.first_name;
-  if (obj.last_name !== undefined) mapped.prenom = obj.last_name;
+  if (obj.first_name !== undefined) mapped.prenom = obj.first_name;
+  if (obj.last_name !== undefined) mapped.nom = obj.last_name;
   if (obj.date_of_birth !== undefined) mapped.date_naissance = obj.date_of_birth || null;
   if (obj.gender !== undefined) {
     // DB enum only supports 'M' or 'F' — map 'Other' -> 'F' (fallback)
@@ -17,8 +17,8 @@ export const dbToApi = (row: any) => {
   if (!row) return row;
   return {
     id: row.id,
-    first_name: row.nom ?? row.first_name,
-    last_name: row.prenom ?? row.last_name,
+    first_name: row.prenom ?? row.first_name,
+    last_name: row.nom ?? row.last_name,
     date_of_birth: row.date_naissance ?? row.date_of_birth,
     gender: row.sexe ?? row.gender,
     address: row.adresse ?? row.address,
