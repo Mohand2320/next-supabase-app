@@ -11,14 +11,16 @@ export default function NewPatientPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState<PatientInsert>({
-    first_name: '', last_name: '', date_of_birth: null, gender: null,
-    phone: null, email: null, address: null, allergies: null,
-    medical_history: null, internal_notes: null,
+    first_name: '', last_name: '', date_of_birth: '', gender: null,
+    phone: '', email: '', address: '', allergies: '',
+    medical_history: '', internal_notes: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value || null }));
+    let newValue: any = value;
+    if (name === 'gender') newValue = value === '' ? null : value;
+    setForm((prev) => ({ ...prev, [name]: newValue } as any));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +75,6 @@ export default function NewPatientPage() {
                   <option value="">— Sélectionner —</option>
                   <option value="M">Homme</option>
                   <option value="F">Femme</option>
-                  <option value="Other">Autre</option>
                 </select>
               </div>
             </div>

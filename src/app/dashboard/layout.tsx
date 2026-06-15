@@ -1,18 +1,54 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, Calendar, Wallet, Settings, Stethoscope,
-  Menu, X
+  Menu, X, User
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+
+import { getCurrentUserProfile } from '@/services/user.service';
+import { createClientBrowser } from '@/lib/supabase/client';
+
+function UserProfileDisplay() {
+  const [name, setName] = useState('Chargement...');
+  const [role, setRole] = useState('');
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await getCurrentUserProfile();
+      if (data) {
+        setName(`${data.data.prenom} ${data.data.nom}`);
+        setRole(data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)');
+      } else {
+        const supabase = createClientBrowser();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setName(user.email || 'Mon Compte');
+          setRole('Profil à configurer');
+        } else {
+          setName('Non connecté');
+        }
+      }
+    }
+    load();
+  }, []);
+
+  return (
+    <>
+      <p className="text-sm font-semibold truncate text-slate-900">{name}</p>
+      <p className="text-xs text-slate-500 truncate">{role}</p>
+    </>
+  );
+}
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/patients', icon: Users, label: 'Patients' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/finances', icon: Wallet, label: 'Finances' },
+  { href: '/dashboard/profile', icon: User, label: 'Mon Profil' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -63,20 +99,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* User */}
       <div className="p-4 border-t border-slate-100">
-        <div className="flex items-center gap-3 p-2">
-          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border border-white shadow-sm">
-            <img
-              src="https://picsum.photos/seed/doctor/100/100"
-              alt="Dr. Smith"
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+        <a href="/dashboard/profile" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-blue-100 shadow-sm">
+            <User className="h-5 w-5 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">Dr. Smith</p>
-            <p className="text-xs text-slate-500 truncate">Chirurgien-dentiste</p>
+            <UserProfileDisplay />
           </div>
-        </div>
+        </a>
       </div>
     </>
   );

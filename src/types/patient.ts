@@ -1,4 +1,7 @@
 export type Gender = 'M' | 'F' | 'Other';
+export type PatientGenderFilter = 'all' | 'male' | 'female';
+export type PatientCreationPreset = 'all' | 'today' | 'week' | 'month' | 'custom';
+export type PatientSortOption = 'name_asc' | 'name_desc' | 'newest' | 'oldest';
 
 export interface Patient {
   id: string; // UUID
@@ -23,6 +26,31 @@ export interface PatientInsert extends Omit<Patient, 'id' | 'created_at' | 'upda
 }
 
 export interface PatientUpdate extends Partial<PatientInsert> {}
+
+export interface PatientListFilters {
+  search: string;
+  gender: PatientGenderFilter;
+  createdPreset: PatientCreationPreset;
+  createdFrom: string;
+  createdTo: string;
+  birthFrom: string;
+  birthTo: string;
+  sort: PatientSortOption;
+  page: number;
+  limit: number;
+}
+
+export interface PatientListMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PatientListResponse {
+  data: Patient[];
+  meta: PatientListMeta;
+}
 
 export interface Treatment {
   id: string; // UUID

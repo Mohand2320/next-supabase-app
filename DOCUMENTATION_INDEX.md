@@ -27,6 +27,13 @@ Bienvenue dans la gestion de base de données pour votre cabinet dentaire. Cette
   - Ordre de chargement des variables
   - Configuration pour Vercel
 
+### 👤 **Gestion des rôles**
+- **[GESTION_ROLES.md](./GESTION_ROLES.md)** 🔐
+  - Rôles métier `dentiste` et `assistant`
+  - Fonctions SQL `current_user_role()` et `current_dentiste_id()`
+  - Politiques RLS sur patients, profils et rendez-vous
+  - Dépannage des erreurs d'autorisation
+
 ### 🗄️ **Gestion des Triggers**
 - **[TRIGGERS_GUIDE.md](./TRIGGERS_GUIDE.md)** 🔄
   - Explication détaillée des triggers

@@ -14,6 +14,21 @@ export const patientSchema = z.object({
   medical_history: z.string().optional().nullable(),
 });
 
+export const patientListQuerySchema = z.object({
+  search: z.string().trim().optional().default(''),
+  gender: z.enum(['all', 'male', 'female']).default('all'),
+  createdPreset: z.enum(['all', 'today', 'week', 'month', 'custom']).default('all'),
+  createdFrom: z.string().trim().optional().default(''),
+  createdTo: z.string().trim().optional().default(''),
+  birthFrom: z.string().trim().optional().default(''),
+  birthTo: z.string().trim().optional().default(''),
+  sort: z.enum(['name_asc', 'name_desc', 'newest', 'oldest']).default('newest'),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export type PatientListQuery = z.infer<typeof patientListQuerySchema>;
+
 /**
  * Schema for Treatment creation
  */
@@ -26,14 +41,4 @@ export const treatmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/, "Invalid date format (ISO)").optional(),
 });
 
-/**
- * Schema for pagination and search query parameters
- */
-export const queryParamsSchema = z.object({
-  search: z.string().optional().nullable(),
-  gender: z.enum(['M', 'F', 'Other']).optional().nullable(),
-  sortBy: z.enum(['last_name', 'first_name', 'created_at', 'date_of_birth']).default('created_at'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  page: z.preprocess((val) => parseInt(val as string, 10), z.number().min(1).default(1)),
-  limit: z.preprocess((val) => parseInt(val as string, 10), z.number().min(1).max(100).default(10)),
-});
+export const queryParamsSchema = patientListQuerySchema;
