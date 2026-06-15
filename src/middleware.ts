@@ -49,7 +49,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Prevent logged-in users from accessing /login or /signup
+  // Prevent logged-in users from accessing /login
   if (user && (url.pathname === '/login' || url.pathname === '/')) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
