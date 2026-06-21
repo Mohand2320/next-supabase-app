@@ -162,7 +162,6 @@ export default function DashboardPage() {
 
   // Filtres
   const [searchFilter, setSearchFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<RendezVous['statut'] | 'ALL'>('ALL');
 
   const fetchRdvs = useCallback(async () => {
@@ -170,15 +169,14 @@ export default function DashboardPage() {
     setRdvsError(null);
     try {
       const supabase = createClientBrowser();
-      const now = new Date();
-      const future = new Date();
-      future.setFullYear(future.getFullYear() + 1);
+      const todayStart = startOfDay(new Date());
+      const todayEnd = endOfDay(new Date());
 
       let query = supabase
         .from('rendez_vous')
         .select('*, patients(id, nom, prenom, telephone)')
-        .gte('date_heure', now.toISOString())
-        .lte('date_heure', future.toISOString())
+        .gte('date_heure', todayStart)
+        .lte('date_heure', todayEnd)
         .order('date_heure', { ascending: true });
 
       const { data, error } = await query;
@@ -212,10 +210,6 @@ export default function DashboardPage() {
   // Filtrage
   const filteredRdvs = rdvs.filter((rdv) => {
     if (statusFilter !== 'ALL' && rdv.statut !== statusFilter) return false;
-    if (dateFilter) {
-      const rdvDate = rdv.date_heure.slice(0, 10);
-      if (rdvDate !== dateFilter) return false;
-    }
     if (searchFilter.trim()) {
       const q = searchFilter.trim().toLowerCase();
       const displayName = getPatientDisplayName(rdv).toLowerCase();
@@ -283,14 +277,6 @@ export default function DashboardPage() {
                   </button>
                 )}
               </div>
-
-              {/* Filtre date */}
-              <input
-                type="date"
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-              />
 
               {/* Filtre statut */}
               <select
