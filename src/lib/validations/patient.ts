@@ -9,7 +9,7 @@ export const patientSchema = z.object({
   email: z.string().email("Invalid email address").or(z.literal('')).optional().nullable(),
   phone: z.string().min(5, "Invalid phone number").or(z.literal('')).optional().nullable(),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)').min(1, 'La date de naissance est requise'),
-  gender: z.enum(['M', 'F'], { required_error: 'Le sexe est requis' }),
+  gender: z.enum(['M', 'F'], { message: 'Le sexe est requis' }),
   address: z.string().optional().nullable(),
   medical_history: z.string().optional().nullable(),
 });
