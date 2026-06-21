@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Users, UserPlus, PlusCircle,
-  TrendingUp, Edit2, Search, X
+  TrendingUp, Eye, Search, X
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { createClientBrowser } from '@/lib/supabase/client';
+import RdvDetailModal from '@/components/agenda/RdvDetailModal';
 import type { RendezVous } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
 
@@ -163,6 +164,10 @@ export default function DashboardPage() {
   // Filtres
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<RendezVous['statut'] | 'ALL'>('ALL');
+
+  // Modal détail RDV
+  const [detailRdv, setDetailRdv] = useState<DashboardRdv | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const fetchRdvs = useCallback(async () => {
     setRdvsLoading(true);
@@ -379,12 +384,12 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 text-sm text-slate-500">{apt.motif || '—'}</td>
                         <td className="px-6 py-4"><StatusBadge statut={apt.statut} /></td>
                         <td className="px-6 py-4 text-right">
-                          <Link
-                            href={`/dashboard/agenda`}
-                            className="inline-flex items-center gap-1 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                          <button
+                            onClick={() => { setDetailRdv(apt); setDetailModalOpen(true); }}
+                            className="inline-flex items-center gap-1 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                           >
-                            <Edit2 className="w-4 h-4" />
-                          </Link>
+                            <Eye className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -395,6 +400,13 @@ export default function DashboardPage() {
           )}
         </motion.div>
       </div>
+
+      {/* Modal détail RDV */}
+      <RdvDetailModal
+        rdv={detailRdv}
+        isOpen={detailModalOpen}
+        onClose={() => { setDetailModalOpen(false); setDetailRdv(null); }}
+      />
     </>
   );
 }

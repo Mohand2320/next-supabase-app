@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { CalendarCheck, PlusCircle, Search, X, Loader2, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { CalendarCheck, PlusCircle, Search, X, Loader2, ChevronLeft, ChevronRight, ArrowUpDown, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { createClientBrowser } from '@/lib/supabase/client';
 import RdvCreateModal from '@/components/agenda/RdvCreateModal';
-import { createRdv } from '@/services/rdv.service';
-import type { RendezVous, RdvCreatePayload } from '@/types/rdv';
+import RdvDrawer from '@/components/agenda/RdvDrawer';
+import RdvCancelModal from '@/components/agenda/RdvCancelModal';
+import { createRdv, fetchRdv, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
+import type { RendezVous, RdvCreatePayload, OrigineAnnulation } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
 
 // --- Types ---
@@ -77,6 +79,15 @@ export default function RendezVousPage() {
 
   // Modal création
   const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  // Drawer détail
+  const [drawerRdv, setDrawerRdv] = useState<RendezVous | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+
+  // Modal annulation
+  const [cancelRdvId, setCancelRdvId] = useState<string | null>(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   // --- Fetch ---
   const fetchRdvs = useCallback(async () => {
@@ -160,6 +171,56 @@ export default function RendezVousPage() {
     setCreateModalOpen(false);
     await fetchRdvs();
   }, [fetchRdvs]);
+
+  // --- Drawer handlers ---
+  const openDrawer = useCallback(async (apt: RdvRow) => {
+    setDrawerLoading(true);
+    setDrawerOpen(true);
+    try {
+      const full = await fetchRdv(apt.id);
+      setDrawerRdv(full);
+    } catch {
+      setDrawerRdv(null);
+    } finally {
+      setDrawerLoading(false);
+    }
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setDrawerRdv(null);
+  }, []);
+
+  const handleConfirmer = useCallback(async (rdvId: string) => {
+    await updateRdvStatus(rdvId, { nouveau_statut: 'CONFIRME' });
+    closeDrawer();
+    await fetchRdvs();
+  }, [closeDrawer, fetchRdvs]);
+
+  const handleTerminer = useCallback(async (rdvId: string) => {
+    await updateRdvStatus(rdvId, { nouveau_statut: 'TERMINE' });
+    closeDrawer();
+    await fetchRdvs();
+  }, [closeDrawer, fetchRdvs]);
+
+  const openCancelModal = useCallback(() => {
+    setCancelModalOpen(true);
+  }, []);
+
+  const handleAnnuler = useCallback(async (origine: OrigineAnnulation) => {
+    if (!cancelRdvId) return;
+    await updateRdvStatus(cancelRdvId, { nouveau_statut: 'ANNULE', origine_annulation: origine });
+    setCancelModalOpen(false);
+    setCancelRdvId(null);
+    closeDrawer();
+    await fetchRdvs();
+  }, [cancelRdvId, closeDrawer, fetchRdvs]);
+
+  const handleDelete = useCallback(async (rdvId: string) => {
+    await deleteRdv(rdvId);
+    closeDrawer();
+    await fetchRdvs();
+  }, [closeDrawer, fetchRdvs]);
 
   // --- Computed ---
   const hasActiveFilters = statusFilter !== 'ALL' || dateFrom !== '' || dateTo !== '' || sort !== 'date_desc' || searchFilter.trim() !== '';
@@ -381,15 +442,12 @@ export default function RendezVousPage() {
                         <td className="px-6 py-4 text-sm text-slate-500">{apt.motif || '—'}</td>
                         <td className="px-6 py-4"><StatusBadge statut={apt.statut} /></td>
                         <td className="px-6 py-4 text-right">
-                          <Link
-                            href={`/dashboard/agenda`}
-                            className="inline-flex items-center gap-1 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                          <button
+                            onClick={() => openDrawer(apt)}
+                            className="inline-flex items-center gap-1 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                           >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </Link>
+                            <Eye className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -449,6 +507,26 @@ export default function RendezVousPage() {
           onClose={() => setCreateModalOpen(false)}
           onSubmit={handleCreateRdv}
           prefilledDate={null}
+        />
+      )}
+
+      {/* Drawer détail */}
+      <RdvDrawer
+        rdv={drawerRdv}
+        isOpen={drawerOpen}
+        onClose={closeDrawer}
+        onConfirmer={handleConfirmer}
+        onAnnuler={() => { setCancelRdvId(drawerRdv?.id ?? null); openCancelModal(); }}
+        onTerminer={handleTerminer}
+        onDelete={handleDelete}
+      />
+
+      {/* Modal annulation */}
+      {cancelModalOpen && (
+        <RdvCancelModal
+          isOpen={cancelModalOpen}
+          onClose={() => { setCancelModalOpen(false); setCancelRdvId(null); }}
+          onConfirm={handleAnnuler}
         />
       )}
     </>

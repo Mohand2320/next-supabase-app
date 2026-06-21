@@ -108,7 +108,7 @@ export default function RdvDrawer({
                 {!isMinimal && (
                   <a
                     href={`/dashboard/patients/${rdv.patient_id}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline pl-13"
+                    className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline pl-13"
                   >
                     Voir le dossier patient <ArrowRightCircle className="w-4 h-4" />
                   </a>
