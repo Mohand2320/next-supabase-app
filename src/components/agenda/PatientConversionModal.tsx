@@ -84,7 +84,7 @@ export default function PatientConversionModal({
           <div className="p-6 space-y-5">
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <p className="text-sm font-medium text-slate-800 mb-1">
-                Le RDV minimal de <span className="font-bold">{rdv.prenom_minimal} {rdv.nom_minimal}</span> est terminé.
+                Le RDV du nouveau patient <span className="font-bold">{rdv.prenom_minimal} {rdv.nom_minimal}</span> est terminé.
               </p>
               <p className="text-xs text-slate-500">
                 Souhaitez-vous rattacher ce RDV à une fiche patient pour générer la séance de traitement correspondante ?
@@ -160,7 +160,7 @@ export default function PatientConversionModal({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
             >
-              Ignorer (Garder minimal)
+              Ignorer (Garder nouveau)
             </button>
             <button
               onClick={handleSubmit}

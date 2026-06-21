@@ -50,7 +50,7 @@ export default function RdvBlock({ rdv, onClick, style, compact = false, view }:
             {heureDebut}
           </span>
           <span className={`text-xs font-medium truncate shrink ${isMinimal ? 'text-amber-700 italic' : 'text-slate-700'}`}>
-            {displayName} {isMinimal && '(minimal)'}
+            {displayName} {isMinimal && '(nouveau)'}
           </span>
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${colors.bg} ${colors.text}`}>
             {STATUT_LABELS[rdv.statut]}
@@ -77,7 +77,7 @@ export default function RdvBlock({ rdv, onClick, style, compact = false, view }:
             <User className="w-3 h-3 text-slate-400 shrink-0" />
             <span className={`text-xs font-medium truncate ${isMinimal ? 'text-amber-700 italic' : 'text-slate-700'}`}>
               {displayName}
-              {isMinimal && ' (minimal)'}
+              {isMinimal && ' (nouveau)'}
             </span>
           </div>
           {rdv.motif && (

@@ -92,7 +92,7 @@ export default function RdvDrawer({
                     <h3 className="font-bold text-slate-900">{displayName}</h3>
                     {isMinimal && (
                       <span className="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
-                        Patient non enregistré (Minimal)
+                        Patient non enregistré (Nouveau)
                       </span>
                     )}
                   </div>

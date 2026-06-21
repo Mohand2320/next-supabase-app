@@ -385,7 +385,7 @@ export default function DashboardPage() {
                             <div>
                               <span className="text-sm font-medium text-slate-700">{getPatientDisplayName(apt)}</span>
                               {!apt.patient_id && (
-                                <span className="block text-[10px] text-amber-600 font-medium">Minimal</span>
+                                <span className="block text-[10px] text-amber-600 font-medium">Nouveau</span>
                               )}
                             </div>
                           </div>
