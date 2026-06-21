@@ -16,6 +16,22 @@ export default function NewPatientPage() {
     medical_history: '', internal_notes: '',
   });
 
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nom = params.get('nom');
+    const prenom = params.get('prenom');
+    const telephone = params.get('telephone');
+
+    if (nom || prenom || telephone) {
+      setForm((prev) => ({
+        ...prev,
+        last_name: nom || prev.last_name,
+        first_name: prenom || prev.first_name,
+        phone: telephone || prev.phone,
+      }));
+    }
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     let newValue: any = value;

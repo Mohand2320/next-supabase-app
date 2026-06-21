@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, User, Phone, Clock, Calendar as CalIcon, Stethoscope, FileText,
@@ -144,6 +145,15 @@ export default function RdvDrawer({
                       <p className="text-sm text-slate-600 mt-1">{rdv.observation}</p>
                     </div>
                   </div>
+                )}
+
+                {isMinimal && !rdv.patient_id && rdv.statut !== 'ANNULE' && (
+                  <Link
+                    href={`/dashboard/patients/new?nom=${encodeURIComponent(rdv.nom_minimal || '')}&prenom=${encodeURIComponent(rdv.prenom_minimal || '')}&telephone=${encodeURIComponent(rdv.telephone_minimal || '')}`}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-sm shadow-emerald-100 transition-all mt-4"
+                  >
+                    Créer la fiche patient
+                  </Link>
                 )}
               </div>
             </div>

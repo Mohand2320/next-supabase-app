@@ -120,6 +120,18 @@ export default function RdvCreateModal({
     // Construct ISO Date
     const isoDate = new Date(`${dateStr}T${timeStr}:00`).toISOString();
 
+    const rdvDate = new Date(isoDate);
+
+    // Vérification de date dans le passé (on bloque si c'est strictement hier ou avant)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Début de journée
+    
+    if (rdvDate.getTime() < today.getTime()) {
+      setError("Il n'est pas possible de planifier un rendez-vous à une date déjà passée.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload: RdvCreatePayload = {
       date_heure: isoDate,
       duree: Number(duree),
@@ -303,10 +315,11 @@ export default function RdvCreateModal({
                 <label className="block text-xs font-semibold text-slate-900">Date *</label>
                 <input
                   type="date"
-                  required
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   value={dateStr}
+                  min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setDateStr(e.target.value)}
+                  required
                 />
               </div>
               <div className="space-y-1.5">

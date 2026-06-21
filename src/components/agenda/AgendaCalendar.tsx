@@ -58,13 +58,8 @@ function DayView({
         {HOURS.map(h => (
           <div
             key={h}
-            className="border-b border-slate-100 cursor-pointer hover:bg-blue-50/30 transition-colors"
+            className="border-b border-slate-100"
             style={{ height: SLOT_HEIGHT }}
-            onClick={() => {
-              const slotDate = new Date(date);
-              slotDate.setHours(h, 0, 0, 0);
-              onSlotClick(slotDate);
-            }}
           />
         ))}
 
@@ -160,13 +155,8 @@ function WeekView({
               {HOURS.map(h => (
                 <div
                   key={h}
-                  className="border-b border-slate-50 cursor-pointer hover:bg-blue-50/30 transition-colors"
+                  className="border-b border-slate-50"
                   style={{ height: SLOT_HEIGHT }}
-                  onClick={() => {
-                    const slotDate = new Date(d);
-                    slotDate.setHours(h, 0, 0, 0);
-                    onSlotClick(slotDate);
-                  }}
                 />
               ))}
 
@@ -234,14 +224,9 @@ function MonthView({
             return (
               <div
                 key={di}
-                className={`min-h-24 sm:min-h-28 p-1 border-l border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors ${
+                className={`min-h-24 sm:min-h-28 p-1 border-l border-slate-100 ${
                   !isCurrentMonth ? 'bg-slate-50/50' : ''
                 }`}
-                onClick={() => {
-                  const slotDate = new Date(d);
-                  slotDate.setHours(9, 0, 0, 0);
-                  onSlotClick(slotDate);
-                }}
               >
                 <div className={`
                   text-xs font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full

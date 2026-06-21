@@ -29,7 +29,7 @@ export default function RdvBlock({ rdv, onClick, style, compact = false }: RdvBl
       className={`
         w-full text-left rounded-lg border-l-4 px-2.5 py-1.5
         transition-all duration-200 cursor-pointer group
-        hover:shadow-md hover:scale-[1.01]
+        hover:shadow-md hover:scale-[1.01] overflow-hidden
         ${colors.bg} ${colors.border}
         ${rdv.statut === 'ANNULE' ? 'opacity-50' : ''}
       `}
@@ -43,17 +43,17 @@ export default function RdvBlock({ rdv, onClick, style, compact = false }: RdvBl
         </div>
       ) : (
         // Full mode (day/week view)
-        <>
-          <div className="flex items-center justify-between gap-1 mb-0.5">
-            <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
-              <Clock className="w-3 h-3 text-slate-400" />
+        <div className="h-full flex flex-col">
+          <div className="flex items-center justify-between gap-1 mb-0.5 shrink-0">
+            <span className="text-xs font-bold text-slate-800 flex items-center gap-1 truncate">
+              <Clock className="w-3 h-3 text-slate-400 shrink-0" />
               {heureDebut}
             </span>
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${colors.bg} ${colors.text}`}>
               {STATUT_LABELS[rdv.statut]}
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <User className="w-3 h-3 text-slate-400 shrink-0" />
             <span className={`text-xs font-medium truncate ${isMinimal ? 'text-amber-700 italic' : 'text-slate-700'}`}>
               {displayName}
@@ -61,15 +61,15 @@ export default function RdvBlock({ rdv, onClick, style, compact = false }: RdvBl
             </span>
           </div>
           {rdv.motif && (
-            <p className="text-[10px] text-slate-500 truncate mt-0.5">{rdv.motif}</p>
+            <p className="text-[10px] text-slate-500 truncate mt-0.5 shrink-0">{rdv.motif}</p>
           )}
           {rdv.telephone_minimal && isMinimal && (
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex items-center gap-1 mt-0.5 shrink-0">
               <Phone className="w-2.5 h-2.5 text-slate-400" />
               <span className="text-[10px] text-slate-500">{rdv.telephone_minimal}</span>
             </div>
           )}
-        </>
+        </div>
       )}
     </button>
   );
