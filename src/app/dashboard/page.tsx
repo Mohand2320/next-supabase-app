@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Calendar, Wallet, UserPlus, PlusCircle,
+  Calendar, Users, UserPlus, PlusCircle,
   TrendingUp, Edit2, Search, X
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -56,7 +56,7 @@ const STATUT_FILTERS: { value: RendezVous['statut'] | 'ALL'; label: string }[] =
 
 // --- Components ---
 
-function StatCard({ stat, loading }: { stat: Stat; loading: boolean }) {
+function StatCard({ stat, loading, error }: { stat: Stat; loading: boolean; error?: string | null }) {
   return (
     <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
       <div className="flex justify-between items-start mb-3 sm:mb-4">
@@ -66,6 +66,8 @@ function StatCard({ stat, loading }: { stat: Stat; loading: boolean }) {
       <div className="flex items-baseline gap-2">
         {loading ? (
           <div className="h-7 w-20 bg-slate-200 rounded animate-pulse" />
+        ) : error ? (
+          <span className="text-sm text-red-500 font-medium">{error}</span>
         ) : (
           <span className="text-xl sm:text-2xl font-bold text-slate-900">{stat.value}</span>
         )}
@@ -94,58 +96,52 @@ function getPatientDisplayName(rdv: DashboardRdv): string {
 // ============================================================
 function useDashboardStats() {
   const [stats, setStats] = useState<Stat[]>([
-    { label: 'RDV du jour', value: '—', icon: <Calendar className="w-5 h-5" /> },
-    { label: 'Nouveaux patients', value: '—', icon: <UserPlus className="w-5 h-5" /> },
-    { label: 'CA du jour', value: '—', icon: <Wallet className="w-5 h-5" /> },
-    { label: 'En attente', value: '—', icon: <TrendingUp className="w-5 h-5" /> },
+    { label: 'RDV aujourd\'hui', value: '—', icon: <Calendar className="w-5 h-5" /> },
+    { label: 'RDV en attente de confirmation', value: '—', icon: <TrendingUp className="w-5 h-5" /> },
+    { label: 'Total patients', value: '—', icon: <Users className="w-5 h-5" /> },
+    { label: 'Nouveaux patients (30j)', value: '—', icon: <UserPlus className="w-5 h-5" /> },
   ]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<number, string | null>>({});
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setErrors({});
     try {
       const supabase = createClientBrowser();
       const todayStart = startOfDay(new Date());
       const todayEnd = endOfDay(new Date());
-      const yesterdayStart = startOfDay(new Date(Date.now() - 86400000));
-      const yesterdayEnd = endOfDay(new Date(Date.now() - 86400000));
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStart = startOfDay(thirtyDaysAgo);
 
-      const [
-        { count: todayRdvs, error: e1 },
-        { count: yesterdayRdvs, error: e2 },
-        { count: todayPatients, error: e3 },
-        { count: yesterdayPatients, error: e4 },
-        { data: todayTreatments, error: e5 },
-        { count: pendingRdvs, error: e6 },
-        { count: yesterdayPendingRdvs, error: e7 },
-      ] = await Promise.all([
+      const results = await Promise.all([
         supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).gte('date_heure', todayStart).lte('date_heure', todayEnd),
-        supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).gte('date_heure', yesterdayStart).lte('date_heure', yesterdayEnd),
-        supabase.from('patients').select('*', { count: 'exact', head: true }).gte('created_at', todayStart).lte('created_at', todayEnd),
-        supabase.from('patients').select('*', { count: 'exact', head: true }).gte('created_at', yesterdayStart).lte('created_at', yesterdayEnd),
-        supabase.from('treatments').select('cost').gte('date', todayStart).lte('date', todayEnd),
         supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).eq('statut', 'PLANIFIE'),
-        supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).eq('statut', 'PLANIFIE').lt('date_heure', todayStart),
+        supabase.from('patients').select('*', { count: 'exact', head: true }),
+        supabase.from('patients').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgoStart),
       ]);
 
-      if (e1 || e2 || e3 || e4 || e5 || e6 || e7) {
-        throw new Error('Erreur lors du chargement des statistiques');
-      }
-
-      const caJour = (todayTreatments || []).reduce((sum, t) => sum + Number(t.cost || 0), 0);
-      const caFormatted = caJour.toLocaleString('fr-FR') + ' €';
+      const newErrors: Record<number, string | null> = {};
+      const values = results.map((r, i) => {
+        if (r.error) {
+          console.error(`[DashboardStats] Carte ${i}:`, r.error);
+          newErrors[i] = 'Erreur';
+          return '—';
+        }
+        return String(r.count ?? 0);
+      });
+      setErrors(newErrors);
 
       setStats([
-        { label: 'RDV du jour', value: String(todayRdvs ?? 0), icon: <Calendar className="w-5 h-5" /> },
-        { label: 'Nouveaux patients', value: String(todayPatients ?? 0), icon: <UserPlus className="w-5 h-5" /> },
-        { label: 'CA du jour', value: caFormatted, icon: <Wallet className="w-5 h-5" /> },
-        { label: 'En attente', value: String(pendingRdvs ?? 0), icon: <TrendingUp className="w-5 h-5" /> },
+        { label: 'RDV aujourd\'hui', value: values[0], icon: <Calendar className="w-5 h-5" /> },
+        { label: 'RDV en attente de confirmation', value: values[1], icon: <TrendingUp className="w-5 h-5" /> },
+        { label: 'Total patients', value: values[2], icon: <Users className="w-5 h-5" /> },
+        { label: 'Nouveaux patients (30j)', value: values[3], icon: <UserPlus className="w-5 h-5" /> },
       ]);
     } catch (err: any) {
       console.error('[DashboardStats]', err);
-      setError(err.message || 'Erreur');
+      setErrors({ 0: 'Erreur', 1: 'Erreur', 2: 'Erreur', 3: 'Erreur' });
     } finally {
       setLoading(false);
     }
@@ -153,11 +149,11 @@ function useDashboardStats() {
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
-  return { stats, loading, error, refetch: fetchStats };
+  return { stats, loading, errors, refetch: fetchStats };
 }
 
 export default function DashboardPage() {
-  const { stats, loading: statsLoading } = useDashboardStats();
+  const { stats, loading: statsLoading, errors: statsErrors } = useDashboardStats();
 
   // État pour les RDV
   const [rdvs, setRdvs] = useState<DashboardRdv[]>([]);
@@ -258,7 +254,7 @@ export default function DashboardPage() {
           className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6"
         >
           {stats.map((stat, idx) => (
-            <StatCard key={idx} stat={stat} loading={statsLoading} />
+            <StatCard key={idx} stat={stat} loading={statsLoading} error={statsErrors[idx]} />
           ))}
         </motion.div>
 
