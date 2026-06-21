@@ -31,7 +31,7 @@ ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS modifie_par UUID REFERENCES use
 ALTER TABLE rendez_vous DROP CONSTRAINT IF EXISTS chk_rdv_patient_ou_minimal;
 ALTER TABLE rendez_vous ADD CONSTRAINT chk_rdv_patient_ou_minimal CHECK (
   patient_id IS NOT NULL
-  OR (nom_minimal IS NOT NULL AND prenom_minimal IS NOT NULL AND telephone_minimal IS NOT NULL)
+  OR (nom_minimal IS NOT NULL AND prenom_minimal IS NOT NULL)
 );
 
 -- ─── Contrainte : origine_annulation obligatoire si ANNULE ──

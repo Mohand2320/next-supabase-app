@@ -78,7 +78,7 @@ function DayView({
                 height: Math.max(pos.height, 28),
               }}
             >
-              <RdvBlock rdv={rdv} onClick={onRdvClick} style={{ height: '100%' }} />
+              <RdvBlock rdv={rdv} onClick={onRdvClick} style={{ height: '100%' }} view="day" />
             </div>
           );
         })}
@@ -173,7 +173,7 @@ function WeekView({
                       height: Math.max(pos.height, 24),
                     }}
                   >
-                    <RdvBlock rdv={rdv} onClick={onRdvClick} style={{ height: '100%' }} />
+                    <RdvBlock rdv={rdv} onClick={onRdvClick} style={{ height: '100%' }} view="week" />
                   </div>
                 );
               })}
@@ -243,6 +243,7 @@ function MonthView({
                         onRdvClick(e);
                       }}
                       compact
+                      view="month"
                     />
                   ))}
                   {dayRdvs.length > 3 && (

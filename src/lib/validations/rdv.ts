@@ -16,7 +16,7 @@ export const rdvCreateSchema = z.object({
   // RDV_MINIMAL
   nom_minimal: z.string().trim().min(1, 'Le nom est requis').optional().nullable(),
   prenom_minimal: z.string().trim().min(1, 'Le prénom est requis').optional().nullable(),
-  telephone_minimal: z.string().trim().min(5, 'Numéro de téléphone invalide').optional().nullable(),
+  telephone_minimal: z.string().trim().min(5, 'Numéro de téléphone invalide').or(z.literal('')).optional().nullable(),
   // Commun
   dentiste_id: z.string().uuid('ID dentiste invalide').optional().nullable(),
   date_heure: z.string().min(1, 'La date et heure sont requises'),
@@ -26,12 +26,12 @@ export const rdvCreateSchema = z.object({
   couleur: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur hexadécimale invalide').optional().default('#378ADD'),
 }).refine(
   (data) => {
-    // Contrainte : patient_id OU (nom + prénom + téléphone)
+    // Contrainte : patient_id OU (nom + prénom)
     if (data.patient_id) return true;
-    return !!(data.nom_minimal && data.prenom_minimal && data.telephone_minimal);
+    return !!(data.nom_minimal && data.prenom_minimal);
   },
   {
-    message: 'Un RDV doit avoir soit un patient lié, soit un nom, prénom et téléphone.',
+    message: 'Un RDV doit avoir soit un patient lié, soit un nom et prénom.',
     path: ['patient_id'],
   }
 );

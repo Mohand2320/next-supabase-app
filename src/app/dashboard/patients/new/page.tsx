@@ -42,7 +42,20 @@ export default function NewPatientPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!form.first_name.trim() || !form.last_name.trim()) { setError('Le nom et le prénom sont obligatoires.'); return; }
+    
+    if (!form.first_name.trim() || !form.last_name.trim()) { 
+      setError('Le nom et le prénom sont obligatoires.'); 
+      return; 
+    }
+    if (!form.date_of_birth) {
+      setError('La date de naissance est obligatoire.');
+      return;
+    }
+    if (!form.gender) {
+      setError('Le sexe est obligatoire.');
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch('/api/patients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
@@ -82,12 +95,12 @@ export default function NewPatientPage() {
                 <input name="first_name" value={form.first_name} onChange={handleChange} className={inputClass} placeholder="Jean" required />
               </div>
               <div>
-                <label className={labelClass}>Date de naissance</label>
-                <input name="date_of_birth" type="date" value={form.date_of_birth || ''} onChange={handleChange} className={inputClass} />
+                <label className={labelClass}>Date de naissance <span className="text-rose-500">*</span></label>
+                <input name="date_of_birth" type="date" required value={form.date_of_birth || ''} onChange={handleChange} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Sexe</label>
-                <select name="gender" value={form.gender || ''} onChange={handleChange} className={inputClass}>
+                <label className={labelClass}>Sexe <span className="text-rose-500">*</span></label>
+                <select name="gender" required value={form.gender || ''} onChange={handleChange} className={inputClass}>
                   <option value="">— Sélectionner —</option>
                   <option value="M">Homme</option>
                   <option value="F">Femme</option>

@@ -107,8 +107,8 @@ export default function RdvCreateModal({
       return;
     }
     if (mode === 'minimal') {
-      if (!nomMinimal.trim() || !prenomMinimal.trim() || !telephoneMinimal.trim()) {
-        setError("Nom, prénom et téléphone sont requis pour un nouveau patient.");
+      if (!nomMinimal.trim() || !prenomMinimal.trim()) {
+        setError("Nom et prénom sont requis pour un nouveau patient.");
         return;
       }
     }
@@ -296,10 +296,9 @@ export default function RdvCreateModal({
                     />
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <label className="block text-xs font-medium text-slate-700">Téléphone *</label>
+                    <label className="block text-xs font-medium text-slate-700">Téléphone</label>
                     <input
                       type="tel"
-                      required
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                       value={telephoneMinimal}
                       onChange={(e) => setTelephoneMinimal(e.target.value)}
