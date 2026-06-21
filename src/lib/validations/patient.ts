@@ -6,10 +6,10 @@ import { z } from 'zod';
 export const patientSchema = z.object({
   first_name: z.string().min(1, "First name is required").trim(),
   last_name: z.string().min(1, "Last name is required").trim(),
-  email: z.string().email("Invalid email address").optional().nullable(),
-  phone: z.string().min(5, "Invalid phone number").optional().nullable(),
-  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)").optional().nullable(),
-  gender: z.enum(['M', 'F', 'Other']).optional().nullable(),
+  email: z.string().email("Invalid email address").or(z.literal('')).optional().nullable(),
+  phone: z.string().min(5, "Invalid phone number").or(z.literal('')).optional().nullable(),
+  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)').min(1, 'La date de naissance est requise'),
+  gender: z.enum(['M', 'F'], { required_error: 'Le sexe est requis' }),
   address: z.string().optional().nullable(),
   medical_history: z.string().optional().nullable(),
 });

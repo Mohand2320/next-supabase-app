@@ -1,0 +1,38 @@
+flowchart TD
+    A[Utilisateur cabinet<br/>Assistante ou Médecin : Créer un nouveau RDV] --> B{Patient existant en base ?}
+    B -->|Oui| C[Sélection du patient existant]
+    B -->|Non| D[Saisie RDV minimaliste<br/>nom + prénom + téléphone]
+    C --> E[Saisie créneau : date / heure<br/>vue jour-semaine-mois]
+    D --> E
+    E --> F[Statut = Planifié<br/>créneau réservé]
+
+    F --> G{Confirmation par un utilisateur cabinet<br/>après contact patient externe}
+    G -->|Patient confirme| H[Statut = Confirmé]
+    G -->|Pas encore de retour| F
+    G -->|Annulation| K[Statut = Annulé<br/>+ origine : patient ou cabinet]
+    H -->|Annulation possible<br/>avant la séance| K
+
+    H --> I[Jour de la séance<br/>clic bloc RDV -> accès dossier patient]
+    F --> I
+    I --> J[Utilisateur cabinet : marque Terminé<br/>en fin de séance]
+
+    J --> L[Création automatique<br/>fiche Traitement - Module 2]
+    J --> M{RDV minimaliste ?}
+    M -->|Oui| N[Recherche doublon<br/>nom / téléphone]
+    N --> O[Système propose :<br/>convertir en fiche patient]
+    O -->|Accepté| P[Création fiche patient<br/>+ rattachement rétroactif du RDV]
+    O -->|Refusé / ignoré| Q[RDV reste autonome]
+    M -->|Non| R[Fin du processus]
+
+    L --> R
+    P --> R
+    Q --> R
+    K --> R
+
+    style F fill:#fff3cd,stroke:#856404
+    style H fill:#d4edda,stroke:#155724
+    style J fill:#cce5ff,stroke:#004085
+    style K fill:#f8d7da,stroke:#721c24
+
+    Note["Note : Médecin = niveau d'autorisation supérieur à l'assistante,<br/>mais même périmètre d'actions sur le module RDV.<br/>Aucun acteur externe / patient dans le système (gestion 100% manuelle)."]
+    style Note fill:#f0f0f0,stroke:#999,stroke-dasharray: 5 5
