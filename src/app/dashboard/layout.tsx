@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Users, Calendar, Wallet, Settings, Stethoscope,
+  LayoutDashboard, Users, Calendar, CalendarCheck, Wallet, Settings, Stethoscope,
   Menu, X, User
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -47,6 +47,7 @@ const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/patients', icon: Users, label: 'Patients' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
+  { href: '/dashboard/rendez-vous', icon: CalendarCheck, label: 'Rendez-vous' },
   { href: '/dashboard/finances', icon: Wallet, label: 'Finances' },
   { href: '/dashboard/profile', icon: User, label: 'Mon Profil' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },

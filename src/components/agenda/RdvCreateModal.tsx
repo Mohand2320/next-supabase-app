@@ -208,7 +208,7 @@ export default function RdvCreateModal({
                     onClick={() => { setMode('minimal'); setSelectedPatient(null); }}
                     className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${mode === 'minimal' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
-                    Nouveau (Minimal)
+                    Nouveau
                   </button>
                 </div>
               </div>

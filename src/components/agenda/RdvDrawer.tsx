@@ -92,7 +92,7 @@ export default function RdvDrawer({
                     <h3 className="font-bold text-slate-900">{displayName}</h3>
                     {isMinimal && (
                       <span className="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
-                        Patient non enregistré (Minimal)
+                        Patient non enregistré (Nouveau)
                       </span>
                     )}
                   </div>
@@ -108,7 +108,7 @@ export default function RdvDrawer({
                 {!isMinimal && (
                   <a
                     href={`/dashboard/patients/${rdv.patient_id}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline pl-13"
+                    className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline pl-13"
                   >
                     Voir le dossier patient <ArrowRightCircle className="w-4 h-4" />
                   </a>

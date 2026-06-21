@@ -1,6 +1,6 @@
 -- ============================================================
--- CABINET DENTAL — Schéma Supabase (PostgreSQL)
--- Généré depuis le diagramme UML
+-- SCHEMA COMPLET — Cabinet Dentaire (Supabase / PostgreSQL)
+-- NE CONTIENT AUCUNE DONNÉE
 -- ============================================================
 
 -- ─── EXTENSIONS ─────────────────────────────────────────────
@@ -37,10 +37,9 @@ BEGIN
 END$$;
 
 -- ============================================================
--- TABLES PRINCIPALES
+-- TABLES
 -- ============================================================
 
--- ─── DENTISTE ────────────────────────────────────────────────
 CREATE TABLE dentistes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nom TEXT NOT NULL,
@@ -51,9 +50,6 @@ CREATE TABLE dentistes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE dentistes IS 'Praticiens dentistes du cabinet';
-
--- ─── ASSISTANT DENTISTE ─────────────────────────────────────
 CREATE TABLE assistants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nom TEXT NOT NULL,
@@ -63,9 +59,6 @@ CREATE TABLE assistants (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE assistants IS 'Assistants dentaires — credentials via Supabase Auth';
-
--- ─── LIEN UTILISATEURS AUTH <-> PROFILS ──────────────────────
 CREATE TABLE user_profiles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('dentiste', 'assistant')),
@@ -78,9 +71,6 @@ CREATE TABLE user_profiles (
   )
 );
 
-COMMENT ON TABLE user_profiles IS 'Jointure entre auth.users et les entités métier';
-
--- ─── PATIENT ─────────────────────────────────────────────────
 CREATE TABLE patients (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nom TEXT NOT NULL,
@@ -96,10 +86,6 @@ CREATE TABLE patients (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE patients IS 'Dossier administratif du patient';
-COMMENT ON COLUMN patients.num_assurance IS 'À chiffrer via Supabase Vault en production';
-
--- ─── PROFIL MÉDICAL ──────────────────────────────────────────
 CREATE TABLE profils_medicaux (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id UUID NOT NULL UNIQUE REFERENCES patients(id) ON DELETE CASCADE,
@@ -111,11 +97,6 @@ CREATE TABLE profils_medicaux (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE profils_medicaux IS 'Données médicales — relation 1-1 avec patients';
-COMMENT ON COLUMN profils_medicaux.antecedents IS 'Liste des antécédents médicaux';
-COMMENT ON COLUMN profils_medicaux.allergies IS 'Liste des allergies connues';
-
--- ─── ACTE MÉDICAL ────────────────────────────────────────────
 CREATE TABLE actes_medicaux (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   libelle TEXT NOT NULL,
@@ -126,9 +107,6 @@ CREATE TABLE actes_medicaux (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE actes_medicaux IS 'Référentiel des actes dentaires avec tarif par défaut';
-
--- ─── CATALOGUE ACTES ─────────────────────────────────────────
 CREATE TABLE catalogues_actes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   dentiste_id UUID NOT NULL UNIQUE REFERENCES dentistes(id) ON DELETE CASCADE,
@@ -137,9 +115,6 @@ CREATE TABLE catalogues_actes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE catalogues_actes IS 'Catalogue d''actes lié à un dentiste (1-1)';
-
--- Table pivot : catalogue <-> actes
 CREATE TABLE catalogue_actes_items (
   catalogue_id UUID NOT NULL REFERENCES catalogues_actes(id) ON DELETE CASCADE,
   acte_id UUID NOT NULL REFERENCES actes_medicaux(id) ON DELETE CASCADE,
@@ -147,9 +122,6 @@ CREATE TABLE catalogue_actes_items (
   PRIMARY KEY (catalogue_id, acte_id)
 );
 
-COMMENT ON TABLE catalogue_actes_items IS 'Actes inclus dans un catalogue (avec prix optionnel surchargé)';
-
--- ─── SÉANCE ──────────────────────────────────────────────────
 CREATE TABLE seances (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
@@ -164,11 +136,6 @@ CREATE TABLE seances (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE seances IS 'Séance de soin réalisée sur un patient';
-COMMENT ON COLUMN seances.localisation IS 'Numéros de dents concernées selon notation ISO 3950';
-COMMENT ON COLUMN seances.imagerie IS 'URLs signées Supabase Storage vers les radiographies';
-
--- Table pivot : séance <-> actes médicaux réalisés
 CREATE TABLE seance_actes (
   seance_id UUID NOT NULL REFERENCES seances(id) ON DELETE CASCADE,
   acte_id UUID NOT NULL REFERENCES actes_medicaux(id) ON DELETE RESTRICT,
@@ -177,9 +144,6 @@ CREATE TABLE seance_actes (
   PRIMARY KEY (seance_id, acte_id)
 );
 
-COMMENT ON TABLE seance_actes IS 'Actes réalisés lors d''une séance (avec prix historique)';
-
--- ─── RENDEZ-VOUS ─────────────────────────────────────────────
 CREATE TABLE rendez_vous (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id UUID REFERENCES patients(id) ON DELETE RESTRICT,
@@ -209,14 +173,10 @@ CREATE TABLE rendez_vous (
   )
 );
 
-COMMENT ON TABLE rendez_vous IS 'Planification des rendez-vous patients';
-COMMENT ON COLUMN rendez_vous.duree IS 'Durée en minutes';
-COMMENT ON COLUMN rendez_vous.couleur IS 'Couleur hexadécimale pour affichage calendrier';
-COMMENT ON COLUMN rendez_vous.seance_id IS 'Référence vers la séance créée après conversion';
+-- ============================================================
+-- INDEX
+-- ============================================================
 
--- ============================================================
--- INDEX DE PERFORMANCE
--- ============================================================
 CREATE INDEX idx_patients_nom ON patients(nom);
 CREATE INDEX idx_patients_prenom ON patients(prenom);
 CREATE INDEX idx_patients_email ON patients(email);
@@ -245,8 +205,9 @@ CREATE INDEX idx_actes_categorie ON actes_medicaux(categorie);
 CREATE INDEX idx_actes_libelle ON actes_medicaux USING gin(to_tsvector('french', libelle));
 
 -- ============================================================
--- TRIGGERS : updated_at automatique
+-- FONCTIONS
 -- ============================================================
+
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -255,17 +216,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_dentistes_updated_at BEFORE UPDATE ON dentistes FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_assistants_updated_at BEFORE UPDATE ON assistants FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_patients_updated_at BEFORE UPDATE ON patients FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_profils_medicaux_updated_at BEFORE UPDATE ON profils_medicaux FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_actes_medicaux_updated_at BEFORE UPDATE ON actes_medicaux FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_seances_updated_at BEFORE UPDATE ON seances FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_rdv_updated_at BEFORE UPDATE ON rendez_vous FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
--- ============================================================
--- FONCTIONS MÉTIER
--- ============================================================
 CREATE OR REPLACE FUNCTION get_age(p_id UUID)
 RETURNS INTEGER LANGUAGE sql STABLE AS $$
   SELECT DATE_PART('year', AGE(date_naissance))::INTEGER FROM patients WHERE id = p_id;
@@ -298,7 +248,7 @@ BEGIN
   END IF;
 
   IF v_rdv.statut NOT IN ('CONFIRME', 'PLANIFIE') THEN
-    RAISE EXCEPTION 'Le RDV doit être PLANIFIE ou CONFIRME pour être converti (statut actuel : %)', v_rdv.statut;
+    RAISE EXCEPTION 'Le RDV doit etre PLANIFIE ou CONFIRME pour etre converti (statut actuel : %)', v_rdv.statut;
   END IF;
 
   IF v_rdv.patient_id IS NOT NULL THEN
@@ -319,8 +269,6 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION convertir_rdv_en_seance IS 'Crée une Seance depuis un RendezVous et passe son statut à TERMINE. Supporte les RDV_MINIMAL (sans patient).';
-
 CREATE OR REPLACE FUNCTION current_user_role()
 RETURNS TEXT LANGUAGE sql SECURITY DEFINER STABLE AS $$
   SELECT role FROM user_profiles WHERE user_id = auth.uid();
@@ -332,8 +280,21 @@ RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
 $$;
 
 -- ============================================================
--- ROW LEVEL SECURITY (RLS)
+-- TRIGGERS
 -- ============================================================
+
+CREATE TRIGGER trg_dentistes_updated_at BEFORE UPDATE ON dentistes FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_assistants_updated_at BEFORE UPDATE ON assistants FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_patients_updated_at BEFORE UPDATE ON patients FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_profils_medicaux_updated_at BEFORE UPDATE ON profils_medicaux FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_actes_medicaux_updated_at BEFORE UPDATE ON actes_medicaux FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_seances_updated_at BEFORE UPDATE ON seances FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_rdv_updated_at BEFORE UPDATE ON rendez_vous FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ============================================================
+-- ROW LEVEL SECURITY
+-- ============================================================
+
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profils_medicaux ENABLE ROW LEVEL SECURITY;
 ALTER TABLE seances ENABLE ROW LEVEL SECURITY;
@@ -345,59 +306,34 @@ ALTER TABLE actes_medicaux ENABLE ROW LEVEL SECURITY;
 ALTER TABLE catalogues_actes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE catalogue_actes_items ENABLE ROW LEVEL SECURITY;
 
--- Patients
 CREATE POLICY "patients_select" ON patients FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "patients_insert" ON patients FOR INSERT WITH CHECK (current_user_role() IN ('dentiste', 'assistant'));
 CREATE POLICY "patients_update" ON patients FOR UPDATE USING (current_user_role() IN ('dentiste', 'assistant'));
 CREATE POLICY "patients_delete" ON patients FOR DELETE USING (current_user_role() = 'dentiste');
 
--- Profils médicaux
 CREATE POLICY "profils_select" ON profils_medicaux FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "profils_insert_update" ON profils_medicaux FOR ALL USING (current_user_role() IN ('dentiste', 'assistant'));
 
--- Séances
 CREATE POLICY "seances_select" ON seances FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "seances_insert" ON seances FOR INSERT WITH CHECK (current_user_role() = 'dentiste');
 CREATE POLICY "seances_update" ON seances FOR UPDATE USING (current_user_role() = 'dentiste' AND dentiste_id = current_dentiste_id());
 CREATE POLICY "seances_delete" ON seances FOR DELETE USING (current_user_role() = 'dentiste' AND dentiste_id = current_dentiste_id());
 
--- Rendez-vous
 CREATE POLICY "rdv_select" ON rendez_vous FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "rdv_insert" ON rendez_vous FOR INSERT WITH CHECK (current_user_role() IN ('dentiste', 'assistant'));
 CREATE POLICY "rdv_update" ON rendez_vous FOR UPDATE USING (current_user_role() IN ('dentiste', 'assistant'));
 CREATE POLICY "rdv_delete" ON rendez_vous FOR DELETE USING (current_user_role() = 'dentiste');
 
--- Catalogue
 CREATE POLICY "catalogue_select" ON catalogues_actes FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "catalogue_modify" ON catalogues_actes FOR ALL USING (dentiste_id = current_dentiste_id());
 
--- Actes médicaux
 CREATE POLICY "actes_select" ON actes_medicaux FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "actes_modify" ON actes_medicaux FOR ALL USING (current_user_role() = 'dentiste');
 
 -- ============================================================
--- DONNÉES INITIALES (SEED)
+-- VUES
 -- ============================================================
-INSERT INTO actes_medicaux (libelle, categorie, prix_defaut, description) VALUES
-  ('Consultation initiale', 'CONSULTATION', 30.00, 'Premier examen clinique complet'),
-  ('Consultation de contrôle', 'CONSULTATION', 23.00, 'Examen de suivi semestriel'),
-  ('Détartrage simple', 'CONSERVATEUR', 28.50, 'Détartrage supra-gingival manuel'),
-  ('Obturation composite 1 face', 'CONSERVATEUR', 45.00, 'Résine composite 1 face (antérieure)'),
-  ('Obturation composite 2 faces', 'CONSERVATEUR', 62.00, 'Résine composite 2 faces'),
-  ('Traitement canalaire monorad.', 'ENDODONTIE', 120.00, 'Dépulpation + mise en forme + obturation'),
-  ('Traitement canalaire multirad.', 'ENDODONTIE', 185.00, 'Molaire — 3 canaux ou plus'),
-  ('Couronne céramique', 'PROTHESE', 450.00, 'Prothèse fixée tout céramique'),
-  ('Couronne métallique', 'PROTHESE', 280.00, 'Prothèse fixée métal-céramique'),
-  ('Prothèse amovible partielle', 'PROTHESE', 650.00, 'Appareil partiel résine'),
-  ('Chirurgie extraction simple', 'CHIRURGIE', 45.00, 'Avulsion dent déchaussée ou mobile'),
-  ('Chirurgie extraction complexe', 'CHIRURGIE', 120.00, 'Dent incluse ou retenue'),
-  ('Blanchiment en cabinet', 'ESTHETIQUE', 250.00, 'Blanchiment professionnel lampe LED'),
-  ('Détartrage parodontal', 'PARODONTOLOGIE', 85.00, 'Surfaçage radiculaire par quadrant')
-ON CONFLICT DO NOTHING;
 
--- ============================================================
--- VUE UTILITAIRE : fiche patient complète
--- ============================================================
 CREATE OR REPLACE VIEW v_fiche_patient AS
 SELECT
   p.id,
@@ -420,5 +356,3 @@ LEFT JOIN profils_medicaux pm ON pm.patient_id = p.id
 LEFT JOIN seances s ON s.patient_id = p.id
 LEFT JOIN rendez_vous rdv ON (rdv.patient_id = p.id AND rdv.date_heure > now() AND rdv.statut NOT IN ('ANNULE', 'TERMINE'))
 GROUP BY p.id, pm.antecedents, pm.allergies, pm.diabete;
-
-COMMENT ON VIEW v_fiche_patient IS 'Vue consolidée patient + profil médical + stats séances/RDV';

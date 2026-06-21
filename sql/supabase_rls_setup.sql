@@ -1,124 +1,124 @@
--- 1. Enable Row Level Security
+-- ============================================================
+-- ROW LEVEL SECURITY (RLS) — Cabinet Dentaire
+-- Configuration complète des politiques RLS Supabase
+-- Basée sur le schéma actuel (colonnes françaises)
+-- Utilise les fonctions current_user_role() et current_dentiste_id()
+-- ============================================================
+
+-- ─── Activation RLS sur toutes les tables ──────────────────
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE treatments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profils_medicaux ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seance_actes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rendez_vous ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dentistes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assistants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE actes_medicaux ENABLE ROW LEVEL SECURITY;
+ALTER TABLE catalogues_actes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE catalogue_actes_items ENABLE ROW LEVEL SECURITY;
 
--- 2. CREATE POLICIES FOR 'patients' table
--- Users can only see their own patients
-CREATE POLICY "Users can view their own patients" 
-ON patients FOR SELECT 
-USING (auth.uid() = user_id);
+-- ─── Fonctions d'aide RLS (si pas déjà créées) ─────────────
+CREATE OR REPLACE FUNCTION current_user_role()
+RETURNS TEXT LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT role FROM user_profiles WHERE user_id = auth.uid();
+$$;
 
--- Users can only insert patients for themselves
-CREATE POLICY "Users can insert their own patients" 
-ON patients FOR INSERT 
-WITH CHECK (auth.uid() = user_id);
+CREATE OR REPLACE FUNCTION current_dentiste_id()
+RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT dentiste_id FROM user_profiles WHERE user_id = auth.uid();
+$$;
 
--- Users can only update their own patients
-CREATE POLICY "Users can update their own patients" 
-ON patients FOR UPDATE 
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+-- ─── Politiques PATIENTS ─────────────────────────────────────
+-- Tout utilisateur authentifié peut voir les patients
+CREATE POLICY "patients_select" ON patients FOR SELECT
+  USING (auth.role() = 'authenticated');
 
--- Users can only delete their own patients
-CREATE POLICY "Users can delete their own patients" 
-ON patients FOR DELETE 
-USING (auth.uid() = user_id);
+-- Dentistes et assistants peuvent créer des patients
+CREATE POLICY "patients_insert" ON patients FOR INSERT
+  WITH CHECK (current_user_role() IN ('dentiste', 'assistant'));
 
+-- Dentistes et assistants peuvent modifier les patients
+CREATE POLICY "patients_update" ON patients FOR UPDATE
+  USING (current_user_role() IN ('dentiste', 'assistant'));
 
--- 3. CREATE POLICIES FOR 'treatments' table
--- Note: Assuming treatments table has a joining or user relationship.
--- If treatments depend on patients, we can check if the user owns the patient.
-CREATE POLICY "Users can view treatments for their patients" 
-ON treatments FOR SELECT 
-USING (
-  EXISTS (
-    SELECT 1 FROM patients 
-    WHERE patients.id = treatments.patient_id 
-    AND patients.user_id = auth.uid()
-  )
-);
+-- Seuls les dentistes peuvent supprimer des patients
+CREATE POLICY "patients_delete" ON patients FOR DELETE
+  USING (current_user_role() = 'dentiste');
 
-CREATE POLICY "Users can insert treatments for their patients" 
-ON treatments FOR INSERT 
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM patients 
-    WHERE patients.id = treatments.patient_id 
-    AND patients.user_id = auth.uid()
-  )
-);
+-- ─── Politiques PROFILS MEDICAUX ─────────────────────────────
+CREATE POLICY "profils_select" ON profils_medicaux FOR SELECT
+  USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Users can update treatments for their patients" 
-ON treatments FOR UPDATE 
-USING (
-  EXISTS (
-    SELECT 1 FROM patients 
-    WHERE patients.id = treatments.patient_id 
-    AND patients.user_id = auth.uid()
-  )
-);
+CREATE POLICY "profils_insert_update" ON profils_medicaux FOR ALL
+  USING (current_user_role() IN ('dentiste', 'assistant'));
 
-CREATE POLICY "Users can delete treatments for their patients" 
-ON treatments FOR DELETE 
-USING (
-  EXISTS (
-    SELECT 1 FROM patients 
-    WHERE patients.id = treatments.patient_id 
-    AND patients.user_id = auth.uid()
-  )
-);
+-- ─── Politiques SEANCES ──────────────────────────────────────
+CREATE POLICY "seances_select" ON seances FOR SELECT
+  USING (auth.role() = 'authenticated');
 
--- 4. Verify RLS status
--- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public';
+CREATE POLICY "seances_insert" ON seances FOR INSERT
+  WITH CHECK (current_user_role() = 'dentiste');
 
+CREATE POLICY "seances_update" ON seances FOR UPDATE
+  USING (current_user_role() = 'dentiste' AND dentiste_id = current_dentiste_id());
 
+CREATE POLICY "seances_delete" ON seances FOR DELETE
+  USING (current_user_role() = 'dentiste' AND dentiste_id = current_dentiste_id());
 
--- backup 31/03/2026
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
+-- ─── Politiques RENDEZ-VOUS ──────────────────────────────────
+CREATE POLICY "rdv_select" ON rendez_vous FOR SELECT
+  USING (auth.role() = 'authenticated');
 
-CREATE TABLE public.appointments (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  patient_id uuid NOT NULL,
-  practitioner_id uuid NOT NULL,
-  start_time timestamp with time zone NOT NULL,
-  end_time timestamp with time zone NOT NULL,
-  status USER-DEFINED NOT NULL DEFAULT 'pending'::appointment_status,
-  notes text,
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT appointments_pkey PRIMARY KEY (id),
-  CONSTRAINT appointments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
-  CONSTRAINT appointments_practitioner_id_fkey FOREIGN KEY (practitioner_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.patients (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  first_name text NOT NULL,
-  last_name text NOT NULL,
-  date_of_birth date,
-  gender text CHECK (gender = ANY (ARRAY['M'::text, 'F'::text, 'Other'::text])),
-  phone text,
-  email text,
-  address text,
-  allergies text,
-  medical_history text,
-  internal_notes text,
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  user_id uuid,
-  CONSTRAINT patients_pkey PRIMARY KEY (id),
-  CONSTRAINT patients_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.treatments (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  patient_id uuid NOT NULL,
-  date timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  treatment_type text NOT NULL,
-  tooth_number text,
-  description text,
-  cost numeric NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT treatments_pkey PRIMARY KEY (id),
-  CONSTRAINT treatments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
-);
--------------------------------------------------------------------------------
+CREATE POLICY "rdv_insert" ON rendez_vous FOR INSERT
+  WITH CHECK (current_user_role() IN ('dentiste', 'assistant'));
+
+CREATE POLICY "rdv_update" ON rendez_vous FOR UPDATE
+  USING (current_user_role() IN ('dentiste', 'assistant'));
+
+CREATE POLICY "rdv_delete" ON rendez_vous FOR DELETE
+  USING (current_user_role() = 'dentiste');
+
+-- ─── Politiques CATALOGUE ────────────────────────────────────
+CREATE POLICY "catalogue_select" ON catalogues_actes FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "catalogue_modify" ON catalogues_actes FOR ALL
+  USING (dentiste_id = current_dentiste_id());
+
+-- ─── Politiques ACTES MEDICAUX ───────────────────────────────
+CREATE POLICY "actes_select" ON actes_medicaux FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "actes_modify" ON actes_medicaux FOR ALL
+  USING (current_user_role() = 'dentiste');
+
+-- ─── Politiques DENTISTES ────────────────────────────────────
+CREATE POLICY "dentistes_select" ON dentistes FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "dentistes_modify" ON dentistes FOR ALL
+  USING (current_user_role() = 'dentiste');
+
+-- ─── Politiques ASSISTANTS ───────────────────────────────────
+CREATE POLICY "assistants_select" ON assistants FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "assistants_modify" ON assistants FOR ALL
+  USING (current_user_role() = 'dentiste');
+
+-- ─── Politiques SEANCE_ACTES ─────────────────────────────────
+CREATE POLICY "seance_actes_select" ON seance_actes FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "seance_actes_insert" ON seance_actes FOR INSERT
+  WITH CHECK (current_user_role() = 'dentiste');
+
+CREATE POLICY "seance_actes_modify" ON seance_actes FOR ALL
+  USING (current_user_role() = 'dentiste');
+
+-- ─── Politiques CATALOGUE_ACTES_ITEMS ────────────────────────
+CREATE POLICY "catalogue_items_select" ON catalogue_actes_items FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "catalogue_items_modify" ON catalogue_actes_items FOR ALL
+  USING (current_user_role() = 'dentiste');
