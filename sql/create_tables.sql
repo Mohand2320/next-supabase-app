@@ -6,6 +6,7 @@
 -- ─── EXTENSIONS ─────────────────────────────────────────────
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- ─── ENUMS ──────────────────────────────────────────────────
 CREATE TYPE sexe_enum AS ENUM ('M', 'F');
@@ -27,6 +28,13 @@ CREATE TYPE statut_rdv_enum AS ENUM (
   'TERMINE',
   'ANNULE'
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'origine_annulation_enum') THEN
+    CREATE TYPE origine_annulation_enum AS ENUM ('PATIENT', 'CABINET');
+  END IF;
+END$$;
 
 -- ============================================================
 -- TABLES PRINCIPALES
@@ -145,7 +153,7 @@ COMMENT ON TABLE catalogue_actes_items IS 'Actes inclus dans un catalogue (avec 
 CREATE TABLE seances (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
-  dentiste_id UUID NOT NULL REFERENCES dentistes(id) ON DELETE RESTRICT,
+  dentiste_id UUID REFERENCES dentistes(id) ON DELETE RESTRICT,
   date_heure TIMESTAMPTZ NOT NULL,
   prix NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (prix >= 0),
   observations TEXT,
@@ -174,8 +182,8 @@ COMMENT ON TABLE seance_actes IS 'Actes réalisés lors d''une séance (avec pri
 -- ─── RENDEZ-VOUS ─────────────────────────────────────────────
 CREATE TABLE rendez_vous (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
-  dentiste_id UUID NOT NULL REFERENCES dentistes(id) ON DELETE RESTRICT,
+  patient_id UUID REFERENCES patients(id) ON DELETE RESTRICT,
+  dentiste_id UUID REFERENCES dentistes(id) ON DELETE RESTRICT,
   assistant_id UUID REFERENCES assistants(id) ON DELETE SET NULL,
   date_heure TIMESTAMPTZ NOT NULL,
   duree INTEGER NOT NULL DEFAULT 30 CHECK (duree > 0),
@@ -183,8 +191,22 @@ CREATE TABLE rendez_vous (
   motif TEXT,
   couleur TEXT DEFAULT '#378ADD',
   seance_id UUID REFERENCES seances(id) ON DELETE SET NULL,
+  nom_minimal TEXT,
+  prenom_minimal TEXT,
+  telephone_minimal TEXT,
+  observation TEXT,
+  origine_annulation origine_annulation_enum,
+  cree_par UUID REFERENCES user_profiles(user_id) ON DELETE SET NULL,
+  modifie_par UUID REFERENCES user_profiles(user_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT chk_rdv_patient_ou_minimal CHECK (
+    patient_id IS NOT NULL
+    OR (nom_minimal IS NOT NULL AND prenom_minimal IS NOT NULL)
+  ),
+  CONSTRAINT chk_rdv_annulation_origine CHECK (
+    statut != 'ANNULE' OR origine_annulation IS NOT NULL
+  )
 );
 
 COMMENT ON TABLE rendez_vous IS 'Planification des rendez-vous patients';
@@ -198,6 +220,14 @@ COMMENT ON COLUMN rendez_vous.seance_id IS 'Référence vers la séance créée 
 CREATE INDEX idx_patients_nom ON patients(nom);
 CREATE INDEX idx_patients_prenom ON patients(prenom);
 CREATE INDEX idx_patients_email ON patients(email);
+CREATE INDEX idx_patients_telephone ON patients(telephone);
+CREATE INDEX idx_patients_created_at ON patients(created_at DESC);
+CREATE INDEX idx_patients_sexe ON patients(sexe);
+
+CREATE INDEX idx_patients_nom_trgm ON patients USING gin(nom gin_trgm_ops);
+CREATE INDEX idx_patients_prenom_trgm ON patients USING gin(prenom gin_trgm_ops);
+CREATE INDEX idx_patients_telephone_trgm ON patients USING gin(telephone gin_trgm_ops);
+CREATE INDEX idx_patients_email_trgm ON patients USING gin(email gin_trgm_ops);
 
 CREATE INDEX idx_seances_patient ON seances(patient_id);
 CREATE INDEX idx_seances_dentiste ON seances(dentiste_id);
@@ -207,6 +237,9 @@ CREATE INDEX idx_rdv_patient ON rendez_vous(patient_id);
 CREATE INDEX idx_rdv_dentiste ON rendez_vous(dentiste_id);
 CREATE INDEX idx_rdv_date ON rendez_vous(date_heure);
 CREATE INDEX idx_rdv_statut ON rendez_vous(statut);
+CREATE INDEX idx_rdv_nom_minimal ON rendez_vous(nom_minimal) WHERE nom_minimal IS NOT NULL;
+CREATE INDEX idx_rdv_telephone_minimal ON rendez_vous(telephone_minimal) WHERE telephone_minimal IS NOT NULL;
+CREATE INDEX idx_rdv_cree_par ON rendez_vous(cree_par) WHERE cree_par IS NOT NULL;
 
 CREATE INDEX idx_actes_categorie ON actes_medicaux(categorie);
 CREATE INDEX idx_actes_libelle ON actes_medicaux USING gin(to_tsvector('french', libelle));
@@ -238,32 +271,6 @@ RETURNS INTEGER LANGUAGE sql STABLE AS $$
   SELECT DATE_PART('year', AGE(date_naissance))::INTEGER FROM patients WHERE id = p_id;
 $$;
 
-CREATE OR REPLACE FUNCTION convertir_rdv_en_seance(p_rdv_id UUID)
-RETURNS UUID LANGUAGE plpgsql AS $$
-DECLARE
-  v_rdv rendez_vous%ROWTYPE;
-  v_seance_id UUID;
-BEGIN
-  SELECT * INTO v_rdv FROM rendez_vous WHERE id = p_rdv_id;
-
-  IF v_rdv.statut NOT IN ('CONFIRME', 'PLANIFIE') THEN
-    RAISE EXCEPTION 'Le RDV doit être PLANIFIE ou CONFIRME pour être converti (statut actuel : %)', v_rdv.statut;
-  END IF;
-
-  INSERT INTO seances (patient_id, dentiste_id, date_heure, type_denture)
-  VALUES (v_rdv.patient_id, v_rdv.dentiste_id, v_rdv.date_heure, 'ADULTE')
-  RETURNING id INTO v_seance_id;
-
-  UPDATE rendez_vous
-  SET statut = 'TERMINE', seance_id = v_seance_id
-  WHERE id = p_rdv_id;
-
-  RETURN v_seance_id;
-END;
-$$;
-
-COMMENT ON FUNCTION convertir_rdv_en_seance IS 'Crée une Seance depuis un RendezVous et passe son statut à TERMINE';
-
 CREATE OR REPLACE FUNCTION add_antecedent(p_patient_id UUID, p_antecedent TEXT)
 RETURNS VOID LANGUAGE sql AS $$
   UPDATE profils_medicaux
@@ -276,6 +283,52 @@ RETURNS NUMERIC LANGUAGE sql AS $$
   SELECT COALESCE(SUM(sa.prix_applique * sa.quantite), 0)
   FROM seance_actes sa
   WHERE sa.seance_id = p_seance_id;
+$$;
+
+CREATE OR REPLACE FUNCTION convertir_rdv_en_seance(p_rdv_id UUID)
+RETURNS UUID LANGUAGE plpgsql AS $$
+DECLARE
+  v_rdv rendez_vous%ROWTYPE;
+  v_seance_id UUID;
+BEGIN
+  SELECT * INTO v_rdv FROM rendez_vous WHERE id = p_rdv_id;
+
+  IF v_rdv IS NULL THEN
+    RAISE EXCEPTION 'RDV non trouvé : %', p_rdv_id;
+  END IF;
+
+  IF v_rdv.statut NOT IN ('CONFIRME', 'PLANIFIE') THEN
+    RAISE EXCEPTION 'Le RDV doit être PLANIFIE ou CONFIRME pour être converti (statut actuel : %)', v_rdv.statut;
+  END IF;
+
+  IF v_rdv.patient_id IS NOT NULL THEN
+    INSERT INTO seances (patient_id, date_heure, type_denture)
+    VALUES (v_rdv.patient_id, v_rdv.date_heure, 'ADULTE')
+    RETURNING id INTO v_seance_id;
+
+    UPDATE rendez_vous
+    SET statut = 'TERMINE', seance_id = v_seance_id
+    WHERE id = p_rdv_id;
+  ELSE
+    UPDATE rendez_vous
+    SET statut = 'TERMINE'
+    WHERE id = p_rdv_id;
+  END IF;
+
+  RETURN v_seance_id;
+END;
+$$;
+
+COMMENT ON FUNCTION convertir_rdv_en_seance IS 'Crée une Seance depuis un RendezVous et passe son statut à TERMINE. Supporte les RDV_MINIMAL (sans patient).';
+
+CREATE OR REPLACE FUNCTION current_user_role()
+RETURNS TEXT LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT role FROM user_profiles WHERE user_id = auth.uid();
+$$;
+
+CREATE OR REPLACE FUNCTION current_dentiste_id()
+RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT dentiste_id FROM user_profiles WHERE user_id = auth.uid();
 $$;
 
 -- ============================================================
@@ -291,16 +344,6 @@ ALTER TABLE assistants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE actes_medicaux ENABLE ROW LEVEL SECURITY;
 ALTER TABLE catalogues_actes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE catalogue_actes_items ENABLE ROW LEVEL SECURITY;
-
-CREATE OR REPLACE FUNCTION current_user_role()
-RETURNS TEXT LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT role FROM user_profiles WHERE user_id = auth.uid();
-$$;
-
-CREATE OR REPLACE FUNCTION current_dentiste_id()
-RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT dentiste_id FROM user_profiles WHERE user_id = auth.uid();
-$$;
 
 -- Patients
 CREATE POLICY "patients_select" ON patients FOR SELECT USING (auth.role() = 'authenticated');
@@ -349,7 +392,8 @@ INSERT INTO actes_medicaux (libelle, categorie, prix_defaut, description) VALUES
   ('Chirurgie extraction simple', 'CHIRURGIE', 45.00, 'Avulsion dent déchaussée ou mobile'),
   ('Chirurgie extraction complexe', 'CHIRURGIE', 120.00, 'Dent incluse ou retenue'),
   ('Blanchiment en cabinet', 'ESTHETIQUE', 250.00, 'Blanchiment professionnel lampe LED'),
-  ('Détartrage parodontal', 'PARODONTOLOGIE', 85.00, 'Surfaçage radiculaire par quadrant');
+  ('Détartrage parodontal', 'PARODONTOLOGIE', 85.00, 'Surfaçage radiculaire par quadrant')
+ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- VUE UTILITAIRE : fiche patient complète
@@ -377,4 +421,4 @@ LEFT JOIN seances s ON s.patient_id = p.id
 LEFT JOIN rendez_vous rdv ON (rdv.patient_id = p.id AND rdv.date_heure > now() AND rdv.statut NOT IN ('ANNULE', 'TERMINE'))
 GROUP BY p.id, pm.antecedents, pm.allergies, pm.diabete;
 
-COMMENT ON VIEW v_fiche_patient IS 'Vue consolidée patient + profil médical + stats séances/RDV'
+COMMENT ON VIEW v_fiche_patient IS 'Vue consolidée patient + profil médical + stats séances/RDV';
