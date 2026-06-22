@@ -1,0 +1,53 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # Exécution tous les mercredis et dimanches à 08:00 UTC
+    - cron: '0 8 * * 0,3'
+  workflow_dispatch: # Permet de l'exécuter manuellement si besoin
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Vérifier le secret SUPABASE_DB_URL
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "❌ Erreur: Le secret SUPABASE_DB_URL est introuvable."
+            exit 1
+          fi
+          echo "✅ Secret trouvé."
+
+      - name: Installer le client PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Effectuer le Health Check (SELECT 1)
+        env:
+          PGCLIENT_TIMEOUT: 10
+        run: |
+          echo "Tentative de connexion à Supabase..."
+          psql "${{ secrets.SUPABASE_DB_URL }}" -c "SELECT 1 AS keepalive_ok;"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Échec de la connexion à Supabase. Le projet est peut-être déjà en veille."
+            exit 1
+          fi
+          echo "✅ Connexion réussie et requête exécutée. Le projet est actif !"
+
+      - name: Notification en cas d'échec
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USER }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "[GitHub Actions] ⚠️ Échec du Keepalive Supabase"
+          body: "Le workflow de maintien d'activité (Keepalive) a échoué. Votre base de données Supabase est peut-être inaccessible ou en veille."
+          to: ${{ secrets.MAIL_USER }}
+          from: "Supabase Keepalive <${{ secrets.MAIL_USER }}>"
