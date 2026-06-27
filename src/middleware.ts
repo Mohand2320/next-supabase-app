@@ -42,6 +42,21 @@ export async function middleware(request: NextRequest) {
 
   const url = request.nextUrl.clone();
 
+  // Vérification de is_active pour les utilisateurs connectés
+  if (user) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('is_active')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profile && profile.is_active === false) {
+      await supabase.auth.signOut();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // 3. Route Protection Logic
   // Protect /dashboard and its sub-routes
   if (!user && url.pathname.startsWith('/dashboard')) {

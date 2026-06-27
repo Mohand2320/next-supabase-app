@@ -59,12 +59,12 @@ export function ProfileSettings() {
     );
   }
 
-  const roleLabel = data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)';
-  const nom = data.data.nom || '';
-  const prenom = data.data.prenom || '';
+  const roleLabel = data.role === 'admin' ? 'Administrateur' : data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)';
+  const nom = data.data?.nom || '';
+  const prenom = data.data?.prenom || '';
   const initiales = (prenom.charAt(0) + nom.charAt(0)).toUpperCase() || '?';
-  const specialite = data.role === 'dentiste' ? (data.data as any).specialite : null;
-  const login = data.role === 'assistant' ? (data.data as any).login : null;
+  const specialite = data.role === 'dentiste' ? (data.data as any)?.specialite : null;
+  const login = data.role === 'assistant' ? (data.data as any)?.login : null;
   const fallback = <span className="text-slate-400 italic">Non renseigné</span>;
 
   return (

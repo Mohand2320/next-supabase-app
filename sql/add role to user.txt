@@ -1,0 +1,285 @@
+-- ============================================================
+-- MANUEL SQL — Gestion des Utilisateurs
+-- Application Cabinet Dentaire (Supabase)
+-- ============================================================
+-- Ce fichier contient toutes les requêtes SQL nécessaires
+-- pour gérer les utilisateurs de l'application.
+-- À exécuter dans le SQL Editor de Supabase (https://supabase.com/dashboard).
+-- ============================================================
+
+
+-- ════════════════════════════════════════════════════════════
+-- 0. VÉRIFICATIONS UTILES (à utiliser à tout moment)
+-- ════════════════════════════════════════════════════════════
+
+-- 0.1 Voir tous les utilisateurs inscrits (auth.users)
+SELECT id, email, created_at 
+FROM auth.users 
+ORDER BY created_at DESC;
+
+-- 0.2 Voir tous les profils configurés (user_profiles)
+SELECT 
+  up.user_id,
+  au.email,
+  up.role,
+  up.is_active,
+  up.dentiste_id,
+  up.assistant_id,
+  up.created_at
+FROM user_profiles up
+JOIN auth.users au ON au.id = up.user_id
+ORDER BY up.created_at DESC;
+
+-- 0.3 Voir tous les dentistes
+SELECT id, nom, prenom, specialite, numero_rpps FROM dentistes;
+
+-- 0.4 Voir tous les assistants
+SELECT id, nom, prenom, login FROM assistants;
+
+-- 0.5 Trouver l'ID d'un utilisateur par son email
+SELECT id, email FROM auth.users WHERE email = 'amoura@gmail.com';
+
+
+-- ════════════════════════════════════════════════════════════
+-- 1. INITIALISATION DE L'APPLICATION (Première utilisation)
+-- ════════════════════════════════════════════════════════════
+-- Prérequis : Avoir exécuté admin_migration.sql AVANT ces requêtes.
+-- Prérequis : L'utilisateur doit d'abord se connecter une fois
+--             sur l'application pour que son compte existe dans auth.users.
+
+-- ── 1.1 Créer le dentiste principal (propriétaire du cabinet) ──
+-- Étape A : Insérer dans la table dentistes
+INSERT INTO dentistes (id, nom, prenom, specialite, numero_rpps)
+VALUES (
+  gen_random_uuid(),         -- ID auto-généré
+  'AMOURA',                  -- ← Votre nom
+  'Mohand',                  -- ← Votre prénom
+  'Omnipratique',            -- ← Votre spécialité (ou NULL)
+  NULL                       -- ← Votre numéro RPPS (ou NULL)
+)
+RETURNING id;
+-- ⚠ NOTEZ L'ID RETOURNÉ, vous en aurez besoin à l'étape B.
+
+-- Étape B : Lier le compte auth au profil dentiste
+-- Remplacez 'ID_DENTISTE_ICI' par l'ID obtenu à l'étape A.
+INSERT INTO user_profiles (user_id, role, dentiste_id, assistant_id, is_active)
+VALUES (
+  '068a9f40-019a-4d78-8280-a48ee3e44e46',  -- ← ID de votre compte (amoura@gmail.com)
+  'dentiste',                                -- Rôle principal
+  'ID_DENTISTE_ICI',                         -- ← ID retourné par l'étape A
+  NULL,                                      -- Pas d'assistant_id
+  true                                       -- Compte actif
+);
+
+
+-- ════════════════════════════════════════════════════════════
+-- 2. AJOUTER UN NOUVEAU DENTISTE
+-- ════════════════════════════════════════════════════════════
+-- Prérequis : Le dentiste doit d'abord se créer un compte
+--             (ou être invité via le panel admin de l'app).
+
+-- Étape A : Créer l'entrée dans la table dentistes
+INSERT INTO dentistes (id, nom, prenom, specialite)
+VALUES (
+  gen_random_uuid(),
+  'NOM_DU_DENTISTE',         -- ← Remplacer
+  'PRENOM_DU_DENTISTE',      -- ← Remplacer
+  'Orthodontie'              -- ← Remplacer (ou NULL)
+)
+RETURNING id;
+
+-- Étape B : Lier le compte auth au profil
+INSERT INTO user_profiles (user_id, role, dentiste_id, assistant_id, is_active)
+VALUES (
+  'ID_USER_ICI',             -- ← ID du compte auth (voir requête 0.5)
+  'dentiste',
+  'ID_DENTISTE_ICI',         -- ← ID retourné par l'étape A
+  NULL,
+  true
+);
+
+
+-- ════════════════════════════════════════════════════════════
+-- 3. AJOUTER UN NOUVEL ASSISTANT
+-- ════════════════════════════════════════════════════════════
+
+-- Étape A : Créer l'entrée dans la table assistants
+INSERT INTO assistants (id, nom, prenom, login)
+VALUES (
+  gen_random_uuid(),
+  'NOM_ASSISTANT',           -- ← Remplacer
+  'PRENOM_ASSISTANT',        -- ← Remplacer
+  'login_assistant'          -- ← Remplacer (identifiant unique)
+)
+RETURNING id;
+
+-- Étape B : Lier le compte auth au profil
+INSERT INTO user_profiles (user_id, role, dentiste_id, assistant_id, is_active)
+VALUES (
+  'ID_USER_ICI',             -- ← ID du compte auth
+  'assistant',
+  NULL,
+  'ID_ASSISTANT_ICI',        -- ← ID retourné par l'étape A
+  true
+);
+
+
+-- ════════════════════════════════════════════════════════════
+-- 4. AJOUTER UN ADMINISTRATEUR PUR (sans rôle métier)
+-- ════════════════════════════════════════════════════════════
+-- Un admin pur n'a ni dentiste_id ni assistant_id.
+-- Il ne peut que gérer les utilisateurs, pas soigner de patients.
+
+INSERT INTO user_profiles (user_id, role, dentiste_id, assistant_id, is_active)
+VALUES (
+  'ID_USER_ICI',             -- ← ID du compte auth
+  'admin',
+  NULL,
+  NULL,
+  true
+);
+
+
+-- ════════════════════════════════════════════════════════════
+-- 5. DONNER LE RÔLE ADMIN À UN DENTISTE EXISTANT
+-- ════════════════════════════════════════════════════════════
+-- ⚠ ATTENTION : Changer le rôle en 'admin' supprime l'accès
+--   aux fonctions de dentiste (séances, suppression patients, etc.)
+-- ⚠ SOLUTION RECOMMANDÉE : Utiliser is_admin (voir section 6)
+
+-- Si vous voulez quand même le faire :
+UPDATE user_profiles
+SET role = 'admin', dentiste_id = NULL, assistant_id = NULL
+WHERE user_id = 'ID_USER_ICI';
+
+
+-- ════════════════════════════════════════════════════════════
+-- 6. ⭐ CAS SPÉCIAL : DENTISTE + ADMIN (RECOMMANDÉ POUR VOUS)
+-- ════════════════════════════════════════════════════════════
+-- Pour que votre compte garde le rôle 'dentiste' (tous les droits
+-- métier) ET ait accès à la page admin, il faut ajouter une
+-- colonne is_admin. Ceci sera géré par une future modification
+-- du code de l'application.
+--
+-- En attendant, la méthode recommandée pour votre cas
+-- (amoura@gmail.com) est :
+--
+-- 1. Garder le rôle 'dentiste' (accès complet aux soins)
+-- 2. Modifier le code pour vérifier is_admin au lieu de role='admin'
+--
+-- Requête préparatoire (à exécuter après modification du code) :
+-- ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
+-- UPDATE user_profiles SET is_admin = true WHERE user_id = '068a9f40-019a-4d78-8280-a48ee3e44e46';
+
+
+-- ════════════════════════════════════════════════════════════
+-- 7. DÉSACTIVER UN UTILISATEUR (bloquer l'accès)
+-- ════════════════════════════════════════════════════════════
+-- L'utilisateur ne pourra plus se connecter. Il sera déconnecté
+-- automatiquement par le middleware au prochain chargement de page.
+
+UPDATE user_profiles
+SET is_active = false
+WHERE user_id = 'ID_USER_ICI';
+
+-- Pour trouver l'ID par email :
+-- UPDATE user_profiles SET is_active = false
+-- WHERE user_id = (SELECT id FROM auth.users WHERE email = 'email@exemple.com');
+
+
+-- ════════════════════════════════════════════════════════════
+-- 8. RÉACTIVER UN UTILISATEUR
+-- ════════════════════════════════════════════════════════════
+
+UPDATE user_profiles
+SET is_active = true
+WHERE user_id = 'ID_USER_ICI';
+
+
+-- ════════════════════════════════════════════════════════════
+-- 9. CHANGER LE RÔLE D'UN UTILISATEUR
+-- ════════════════════════════════════════════════════════════
+
+-- 9.1 Passer un assistant → dentiste
+-- Étape A : Créer l'entrée dentiste
+INSERT INTO dentistes (id, nom, prenom) VALUES (gen_random_uuid(), 'NOM', 'PRENOM')
+RETURNING id;
+
+-- Étape B : Mettre à jour le profil
+UPDATE user_profiles
+SET role = 'dentiste', dentiste_id = 'ID_DENTISTE_ICI', assistant_id = NULL
+WHERE user_id = 'ID_USER_ICI';
+
+-- 9.2 Passer un dentiste → assistant
+INSERT INTO assistants (id, nom, prenom, login) VALUES (gen_random_uuid(), 'NOM', 'PRENOM', 'login')
+RETURNING id;
+
+UPDATE user_profiles
+SET role = 'assistant', assistant_id = 'ID_ASSISTANT_ICI', dentiste_id = NULL
+WHERE user_id = 'ID_USER_ICI';
+
+
+-- ════════════════════════════════════════════════════════════
+-- 10. SUPPRIMER UN UTILISATEUR (définitif)
+-- ════════════════════════════════════════════════════════════
+-- ⚠ IRRÉVERSIBLE. Préférez la désactivation (section 7).
+
+-- Étape 1 : Supprimer le profil
+DELETE FROM user_profiles WHERE user_id = 'ID_USER_ICI';
+
+-- Étape 2 : Supprimer le compte auth (via le Dashboard Supabase
+-- > Authentication > Users, ou via SQL) :
+-- SELECT auth.admin_delete_user('ID_USER_ICI');
+
+
+-- ════════════════════════════════════════════════════════════
+-- 11. TABLEAU RÉCAPITULATIF DES AUTORISATIONS PAR RÔLE
+-- ════════════════════════════════════════════════════════════
+--
+-- ┌────────────────────────────┬───────────┬──────────┬───────┐
+-- │ Action                     │ Assistant │ Dentiste │ Admin │
+-- ├────────────────────────────┼───────────┼──────────┼───────┤
+-- │ Voir patients/RDV/séances  │    ✅     │    ✅    │  ❌   │
+-- │ Ajouter/Modifier patients  │    ✅     │    ✅    │  ❌   │
+-- │ Supprimer patients         │    ❌     │    ✅    │  ❌   │
+-- │ Ajouter/Modifier RDV       │    ✅     │    ✅    │  ❌   │
+-- │ Supprimer RDV              │    ❌     │    ✅    │  ❌   │
+-- │ Gérer séances (soins)      │    ❌     │    ✅    │  ❌   │
+-- │ Modifier actes médicaux    │    ❌     │    ✅    │  ❌   │
+-- │ Modifier catalogue         │    ❌     │    ✅    │  ❌   │
+-- │ Gérer les utilisateurs     │    ❌     │    ❌    │  ✅   │
+-- └────────────────────────────┴───────────┴──────────┴───────┘
+--
+-- ⚠ Un admin pur ne peut PAS accéder aux données métier.
+--    C'est pourquoi la solution "Dentiste + is_admin" est
+--    recommandée pour le propriétaire du cabinet (voir section 6).
+-- ════════════════════════════════════════════════════════════
+
+
+-- ════════════════════════════════════════════════════════════
+-- EXEMPLE CONCRET : INITIALISER amoura@gmail.com COMME DENTISTE
+-- ════════════════════════════════════════════════════════════
+-- Votre ID auth : 068a9f40-019a-4d78-8280-a48ee3e44e46
+--
+-- Exécutez ces 2 requêtes dans l'ordre :
+
+-- Requête 1 : Créer votre fiche dentiste
+INSERT INTO dentistes (id, nom, prenom, specialite)
+VALUES (
+  gen_random_uuid(),
+  'AMOURA',
+  'Mohand',
+  'Omnipratique'
+)
+RETURNING id;
+-- → Copiez l'ID retourné (ex: 'abc12345-...')
+
+-- Requête 2 : Créer votre profil (remplacez ID_RETOURNÉ)
+INSERT INTO user_profiles (user_id, role, dentiste_id, assistant_id, is_active)
+VALUES (
+  '068a9f40-019a-4d78-8280-a48ee3e44e46',
+  'dentiste',
+  'ID_RETOURNÉ',  -- ← Collez ici l'ID de la requête 1
+  NULL,
+  true
+);
