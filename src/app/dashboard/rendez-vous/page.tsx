@@ -389,7 +389,15 @@ export default function RendezVousPage() {
                   <div key={apt.id} className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-900">{formatHeure(apt.date_heure)}</span>
-                      <StatusBadge statut={apt.statut} />
+                      <div className="flex items-center gap-2">
+                        <StatusBadge statut={apt.statut} />
+                        <button
+                          onClick={() => openDrawer(apt)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                       <span>{formatDate(apt.date_heure)}</span>

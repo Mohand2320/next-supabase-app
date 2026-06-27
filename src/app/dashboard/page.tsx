@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Calendar, Users, UserPlus, PlusCircle,
-  TrendingUp, Eye, Search, X
+  TrendingUp, Eye, Search, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
@@ -153,6 +153,8 @@ function useDashboardStats() {
   return { stats, loading, errors, refetch: fetchStats };
 }
 
+const DASHBOARD_ITEMS_PER_PAGE = 10;
+
 export default function DashboardPage() {
   const { stats, loading: statsLoading, errors: statsErrors } = useDashboardStats();
 
@@ -164,6 +166,9 @@ export default function DashboardPage() {
   // Filtres
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<RendezVous['statut'] | 'ALL'>('ALL');
+
+  // Pagination
+  const [page, setPage] = useState(1);
 
   // Modal détail RDV
   const [detailRdv, setDetailRdv] = useState<DashboardRdv | null>(null);
@@ -213,7 +218,7 @@ export default function DashboardPage() {
   useEffect(() => { fetchRdvs(); }, [fetchRdvs]);
 
   // Filtrage
-  const filteredRdvs = rdvs.filter((rdv) => {
+  const filteredRdvs = useMemo(() => rdvs.filter((rdv) => {
     if (statusFilter !== 'ALL' && rdv.statut !== statusFilter) return false;
     if (searchFilter.trim()) {
       const q = searchFilter.trim().toLowerCase();
@@ -221,7 +226,17 @@ export default function DashboardPage() {
       if (!displayName.includes(q)) return false;
     }
     return true;
-  });
+  }), [rdvs, statusFilter, searchFilter]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredRdvs.length / DASHBOARD_ITEMS_PER_PAGE));
+  const paginatedRdvs = useMemo(
+    () => filteredRdvs.slice((page - 1) * DASHBOARD_ITEMS_PER_PAGE, page * DASHBOARD_ITEMS_PER_PAGE),
+    [filteredRdvs, page]
+  );
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [searchFilter, statusFilter]);
   return (
     <>
       {/* Header */}
@@ -330,11 +345,19 @@ export default function DashboardPage() {
             <>
               {/* Mobile: cards layout */}
               <div className="block sm:hidden divide-y divide-slate-100">
-                {filteredRdvs.map((apt) => (
+                {paginatedRdvs.map((apt) => (
                   <div key={apt.id} className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-900">{formatHeure(apt.date_heure)}</span>
-                      <StatusBadge statut={apt.statut} />
+                      <div className="flex items-center gap-2">
+                        <StatusBadge statut={apt.statut} />
+                        <button
+                          onClick={() => { setDetailRdv(apt); setDetailModalOpen(true); }}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 text-xs font-bold">
@@ -362,7 +385,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredRdvs.map((apt) => (
+                    {paginatedRdvs.map((apt) => (
                       <tr key={apt.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {formatHeure(apt.date_heure)}
@@ -395,6 +418,47 @@ export default function DashboardPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="px-4 sm:px-6 py-4 border-t border-slate-100">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm text-slate-500">
+                    {totalPages <= 1 ? (
+                      <span>{filteredRdvs.length} résultat{filteredRdvs.length > 1 ? 's' : ''}</span>
+                    ) : (
+                      <span>
+                        Affichage de <span className="font-semibold text-slate-900">{(page - 1) * DASHBOARD_ITEMS_PER_PAGE + 1}</span> à{' '}
+                        <span className="font-semibold text-slate-900">{Math.min(page * DASHBOARD_ITEMS_PER_PAGE, filteredRdvs.length)}</span> sur{' '}
+                        <span className="font-semibold text-slate-900">{filteredRdvs.length}</span> rendez-vous
+                      </span>
+                    )}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page <= 1}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Précédent
+                      </button>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                        Page {page} / {totalPages}
+                      </div>
+                      <button
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page >= totalPages}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Suivant
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}

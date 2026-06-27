@@ -62,9 +62,10 @@ export function ProfileSettings() {
   const roleLabel = data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)';
   const nom = data.data.nom || '';
   const prenom = data.data.prenom || '';
-  const initiales = `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase() || '?';
+  const initiales = (prenom.charAt(0) + nom.charAt(0)).toUpperCase() || '?';
   const specialite = data.role === 'dentiste' ? (data.data as any).specialite : null;
   const login = data.role === 'assistant' ? (data.data as any).login : null;
+  const fallback = <span className="text-slate-400 italic">Non renseigné</span>;
 
   return (
     <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -74,7 +75,7 @@ export function ProfileSettings() {
             {initiales}
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">{prenom} {nom}</h2>
+            <h2 className="text-2xl font-bold text-slate-900">{prenom || prenom} {nom || 'Utilisateur'}</h2>
             <p className="text-sm font-medium text-blue-600">{roleLabel}</p>
           </div>
         </div>
@@ -85,28 +86,28 @@ export function ProfileSettings() {
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-slate-500">Nom</label>
             <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
-              {nom}
+              {nom || fallback}
             </div>
           </div>
 
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-slate-500">Prénom</label>
             <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
-              {prenom}
+              {prenom || fallback}
             </div>
           </div>
 
           <div className="space-y-2 sm:col-span-2">
             <label className="block text-sm font-semibold text-slate-500">Nom complet</label>
             <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
-              {prenom} {nom}
+              {(prenom || nom) ? `${prenom} ${nom}`.trim() : fallback}
             </div>
           </div>
 
           <div className="space-y-2 sm:col-span-2">
             <label className="block text-sm font-semibold text-slate-500">Adresse email</label>
             <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
-              {data.email}
+              {data.email || fallback}
             </div>
           </div>
 
@@ -121,7 +122,7 @@ export function ProfileSettings() {
             <div className="space-y-2 sm:col-span-2">
               <label className="block text-sm font-semibold text-slate-500">Spécialité</label>
               <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
-                {specialite || 'Non renseignée'}
+                {specialite || fallback}
               </div>
             </div>
           )}
@@ -130,7 +131,7 @@ export function ProfileSettings() {
             <div className="space-y-2 sm:col-span-2">
               <label className="block text-sm font-semibold text-slate-500">Identifiant de connexion (Login)</label>
               <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
-                {login}
+                {login || fallback}
               </div>
             </div>
           )}
