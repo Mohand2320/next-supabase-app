@@ -59,7 +59,8 @@ export function ProfileSettings() {
     );
   }
 
-  const roleLabel = data.role === 'admin' ? 'Administrateur' : data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)';
+  const roleLabel = data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)';
+  const adminBadge = data.profile.is_admin ? <span className="ml-2 inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">Administrateur</span> : null;
   const nom = data.data?.nom || '';
   const prenom = data.data?.prenom || '';
   const initiales = (prenom.charAt(0) + nom.charAt(0)).toUpperCase() || '?';
@@ -76,7 +77,10 @@ export function ProfileSettings() {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-slate-900">{prenom || prenom} {nom || 'Utilisateur'}</h2>
-            <p className="text-sm font-medium text-blue-600">{roleLabel}</p>
+            <p className="text-sm font-medium text-blue-600 mt-1 flex items-center">
+              {roleLabel}
+              {adminBadge}
+            </p>
           </div>
         </div>
       </div>

@@ -90,11 +90,6 @@ export async function getCurrentUserProfile(): Promise<{ data: CurrentUserData |
       return { data: { role: 'assistant', email: user.email || '', profile, data: assistant }, error: null };
     }
 
-    if (profile.role === 'admin') {
-      console.log('[getCurrentUserProfile] Succès : Administrateur identifié.');
-      return { data: { role: 'admin', email: user.email || '', profile, data: null }, error: null };
-    }
-
     console.warn('[getCurrentUserProfile] Mapping incorrect des données : Rôle inconnu', profile.role);
     return { data: null, error: 'Mapping incorrect des données' };
   } catch (error) {

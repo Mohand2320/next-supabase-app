@@ -19,12 +19,7 @@ function UserProfileDisplay() {
     async function load() {
       const { data } = await getCurrentUserProfile();
       if (data) {
-        if (data.role === 'admin') {
-          // Si admin, le nom est géré différemment (pas dans data.data)
-          // On peut fallback sur l'email qui est dispo
-          setName(data.email || 'Administrateur');
-          setRole('Administrateur');
-        } else if (data.data) {
+        if (data.data) {
           setName(`${data.data.prenom} ${data.data.nom}`);
           setRole(data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)');
         }
@@ -63,11 +58,11 @@ const NAV_ITEMS = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const pathname = usePathname();
 
   useEffect(() => {
-    getCurrentUserProfile().then(({ data }) => setUserRole(data?.role || null));
+    getCurrentUserProfile().then(({ data }) => setIsAdmin(data?.profile.is_admin || false));
   }, []);
 
   const isActive = (href: string) => {
@@ -90,7 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Nav */}
       <nav className="flex-1 px-4 space-y-1">
-        {NAV_ITEMS.filter(item => !item.adminOnly || userRole === 'admin').map((item) => {
+        {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (

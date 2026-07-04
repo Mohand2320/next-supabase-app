@@ -1,9 +1,10 @@
 export interface UserProfile {
   user_id: string;
-  role: 'dentiste' | 'assistant' | 'admin';
+  role: 'dentiste' | 'assistant';
   dentiste_id: string | null;
   assistant_id: string | null;
   is_active: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -28,8 +29,7 @@ export interface Assistant {
 
 export type CurrentUserData = 
   | { role: 'dentiste'; email: string; profile: UserProfile; data: Dentiste }
-  | { role: 'assistant'; email: string; profile: UserProfile; data: Assistant }
-  | { role: 'admin'; email: string; profile: UserProfile; data: null };
+  | { role: 'assistant'; email: string; profile: UserProfile; data: Assistant };
 
 export interface UpdateProfileInput {
   nom?: string;

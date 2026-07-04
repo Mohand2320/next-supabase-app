@@ -11,13 +11,14 @@ export interface AdminUserListItem {
   prenom: string | null;
   role: string;
   is_active: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 
 // Vérification de sécurité (Server side)
 async function requireAdmin() {
   const { data } = await getCurrentUserProfile();
-  if (!data || data.role !== 'admin') {
+  if (!data || !data.profile.is_admin) {
     throw new Error('Non autorisé. Seul un administrateur peut effectuer cette action.');
   }
 }
@@ -29,7 +30,7 @@ export async function getUsersList(): Promise<{ data: AdminUserListItem[] | null
     // 1. Récupérer tous les profils (sans RLS via supabaseAdmin)
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('user_profiles')
-      .select('user_id, role, is_active, created_at, dentiste_id, assistant_id');
+      .select('user_id, role, is_active, is_admin, created_at, dentiste_id, assistant_id');
 
     if (profilesError) throw profilesError;
 
@@ -56,9 +57,6 @@ export async function getUsersList(): Promise<{ data: AdminUserListItem[] | null
       } else if (p.role === 'assistant' && p.assistant_id) {
         const a = assistants?.find(x => x.id === p.assistant_id);
         if (a) { nom = a.nom; prenom = a.prenom; }
-      } else if (p.role === 'admin' && authUser?.user_metadata?.full_name) {
-        // Fallback si on a mis full_name (selon approche simplifiée)
-        nom = authUser.user_metadata.full_name;
       }
 
       return {
@@ -68,6 +66,7 @@ export async function getUsersList(): Promise<{ data: AdminUserListItem[] | null
         prenom,
         role: p.role,
         is_active: p.is_active,
+        is_admin: p.is_admin,
         created_at: p.created_at,
       };
     });
@@ -102,7 +101,7 @@ export async function toggleUserStatus(userId: string, currentStatus: boolean): 
   }
 }
 
-export async function inviteUser(email: string, nom: string, role: 'user' | 'admin'): Promise<{ success: boolean, error: string | null }> {
+export async function inviteUser(email: string, nom: string, prenom: string, role: 'dentiste' | 'assistant', specialiteOrLogin: string, isAdmin: boolean): Promise<{ success: boolean, error: string | null }> {
   try {
     await requireAdmin();
 
@@ -110,39 +109,43 @@ export async function inviteUser(email: string, nom: string, role: 'user' | 'adm
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       email_confirm: false,
-      user_metadata: { full_name: nom }
+      user_metadata: { nom, prenom }
     });
 
     if (authError) throw authError;
     if (!authData.user) throw new Error("Erreur de création d'utilisateur");
 
-    // 2. Insérer le profil (l'utilisateur est créé mais doit finir son onboarding s'il est dentiste/assistant)
-    // Ici, le rôle initial est 'admin' ou autre. Si c'est 'user', il est sans doute 'assistant' par défaut ou 'dentiste'.
-    // Puisque le plan dit : "L'administrateur saisit uniquement nom + email + rôle (user/admin)"
-    // On va stocker 'admin' ou 'assistant' (on peut considérer 'user' = 'assistant' pour le moment, ou un rôle générique).
-    // D'après le DB schema, role DOIT être dans ('dentiste', 'assistant', 'admin').
-    // Si role === 'user' dans la modal, on l'assimile à 'assistant' par défaut, qui pourra être changé.
-    const dbRole = role === 'admin' ? 'admin' : 'assistant';
-
+    let dentisteId = null;
     let assistantId = null;
 
-    // Si on le crée comme assistant, créons l'entrée assistants pour avoir son nom
-    if (dbRole === 'assistant') {
-      const { data: astData, error: astError } = await supabaseAdmin.from('assistants').insert({
+    if (role === 'dentiste') {
+      const { data: dData, error: dError } = await supabaseAdmin.from('dentistes').insert({
         nom,
-        prenom: '',
-        login: email.split('@')[0]
+        prenom,
+        specialite: specialiteOrLogin || null,
+        numero_rpps: null
       }).select('id').single();
 
-      if (astError) throw astError;
-      assistantId = astData.id;
+      if (dError) throw dError;
+      dentisteId = dData.id;
+    } else {
+      const { data: aData, error: aError } = await supabaseAdmin.from('assistants').insert({
+        nom,
+        prenom,
+        login: specialiteOrLogin
+      }).select('id').single();
+
+      if (aError) throw aError;
+      assistantId = aData.id;
     }
 
     const { error: profileError } = await supabaseAdmin.from('user_profiles').insert({
       user_id: authData.user.id,
-      role: dbRole,
+      role: role,
+      dentiste_id: dentisteId,
       assistant_id: assistantId,
-      is_active: true
+      is_active: true,
+      is_admin: isAdmin
     });
 
     if (profileError) {
