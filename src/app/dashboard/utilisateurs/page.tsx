@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getUsersList, toggleUserStatus } from '@/services/admin.service';
+import { getUsersList, toggleUserStatus, deleteUser } from '@/services/admin.service';
 import type { AdminUserListItem } from '@/services/admin.service';
-import { Search, Plus, Shield, User, Loader2, Power } from 'lucide-react';
+import { Search, Plus, Shield, User, Loader2, Power, Pencil, Trash2 } from 'lucide-react';
 import CreateUserModal from '@/components/admin/CreateUserModal';
+import EditUserModal from '@/components/admin/EditUserModal';
 import { createClientBrowser } from '@/lib/supabase/client';
 
 export default function UtilisateursPage() {
@@ -14,6 +15,8 @@ export default function UtilisateursPage() {
   
   const [searchFilter, setSearchFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<AdminUserListItem | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
@@ -48,6 +51,23 @@ export default function UtilisateursPage() {
     } else {
       alert(toggleError);
     }
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (userId === currentUserId) return;
+    if (!confirm(`ATTENTION : Voulez-vous vraiment supprimer définitivement cet utilisateur ?\nCette action est irréversible, bien que son historique médical (rendez-vous, actes) sera conservé.`)) return;
+
+    const { success, error: delError } = await deleteUser(userId);
+    if (success) {
+      setUsers(users.filter(u => u.id !== userId));
+    } else {
+      alert(delError);
+    }
+  };
+
+  const openEditModal = (user: AdminUserListItem) => {
+    setUserToEdit(user);
+    setIsEditModalOpen(true);
   };
 
   const filteredUsers = useMemo(() => {
@@ -168,20 +188,46 @@ export default function UtilisateursPage() {
                           })}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleToggleStatus(u.id, u.is_active)}
-                            disabled={isMe}
-                            title={isMe ? "Vous ne pouvez pas modifier votre propre statut" : u.is_active ? "Désactiver" : "Activer"}
-                            className={`inline-flex items-center justify-center p-2 rounded-lg transition-colors ${
-                              isMe 
-                                ? 'opacity-30 cursor-not-allowed text-slate-400'
-                                : u.is_active 
-                                  ? 'text-rose-600 hover:bg-rose-50' 
-                                  : 'text-emerald-600 hover:bg-emerald-50'
-                            }`}
-                          >
-                            <Power className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEditModal(u)}
+                              disabled={isMe}
+                              title="Modifier l'utilisateur"
+                              className={`inline-flex items-center justify-center p-2 rounded-lg transition-colors ${
+                                isMe 
+                                  ? 'opacity-30 cursor-not-allowed text-slate-400'
+                                  : 'text-blue-600 hover:bg-blue-50'
+                              }`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleStatus(u.id, u.is_active)}
+                              disabled={isMe}
+                              title={isMe ? "Vous ne pouvez pas modifier votre propre statut" : u.is_active ? "Désactiver l'accès" : "Activer l'accès"}
+                              className={`inline-flex items-center justify-center p-2 rounded-lg transition-colors ${
+                                isMe 
+                                  ? 'opacity-30 cursor-not-allowed text-slate-400'
+                                  : u.is_active 
+                                    ? 'text-amber-600 hover:bg-amber-50' 
+                                    : 'text-emerald-600 hover:bg-emerald-50'
+                              }`}
+                            >
+                              <Power className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(u.id)}
+                              disabled={isMe}
+                              title="Supprimer définitivement"
+                              className={`inline-flex items-center justify-center p-2 rounded-lg transition-colors ${
+                                isMe 
+                                  ? 'opacity-30 cursor-not-allowed text-slate-400'
+                                  : 'text-rose-600 hover:bg-rose-50'
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -200,6 +246,20 @@ export default function UtilisateursPage() {
           setIsModalOpen(false);
           fetchUsers();
         }}
+      />
+
+      <EditUserModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setUserToEdit(null);
+        }}
+        onSuccess={() => {
+          setIsEditModalOpen(false);
+          setUserToEdit(null);
+          fetchUsers();
+        }}
+        user={userToEdit}
       />
     </>
   );

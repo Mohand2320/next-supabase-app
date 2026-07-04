@@ -58,8 +58,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Route Protection Logic
-  // Protect /dashboard and its sub-routes
-  if (!user && url.pathname.startsWith('/dashboard')) {
+  // Protect /dashboard and /update-password
+  if (!user && (url.pathname.startsWith('/dashboard') || url.pathname === '/update-password')) {
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
