@@ -42,9 +42,24 @@ export async function middleware(request: NextRequest) {
 
   const url = request.nextUrl.clone();
 
+  // Vérification de is_active pour les utilisateurs connectés
+  if (user) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('is_active')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profile && profile.is_active === false) {
+      await supabase.auth.signOut();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // 3. Route Protection Logic
-  // Protect /dashboard and its sub-routes
-  if (!user && url.pathname.startsWith('/dashboard')) {
+  // Protect /dashboard and /update-password
+  if (!user && (url.pathname.startsWith('/dashboard') || url.pathname === '/update-password')) {
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
@@ -55,8 +70,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 4. Log request for debug (optional, can be removed once verified)
-  console.log(`[AUTH_MIDDLEWARE] ${user ? 'Authenticated' : 'Public'} access: ${url.pathname}`);
+  // 4. Log request for debug (removed for production)
 
   return response;
 }

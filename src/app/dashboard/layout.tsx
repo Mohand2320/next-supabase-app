@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, Calendar, CalendarCheck, Wallet, Settings, Stethoscope,
-  Menu, X, User
+  Menu, X, User, Shield
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -19,8 +19,10 @@ function UserProfileDisplay() {
     async function load() {
       const { data } = await getCurrentUserProfile();
       if (data) {
-        setName(`${data.data.prenom} ${data.data.nom}`);
-        setRole(data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)');
+        if (data.data) {
+          setName(`${data.data.prenom} ${data.data.nom}`);
+          setRole(data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)');
+        }
       } else {
         const supabase = createClientBrowser();
         const { data: { user } } = await supabase.auth.getUser();
@@ -49,13 +51,19 @@ const NAV_ITEMS = [
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/rendez-vous', icon: CalendarCheck, label: 'Rendez-vous' },
   { href: '/dashboard/finances', icon: Wallet, label: 'Finances' },
+  { href: '/dashboard/utilisateurs', icon: Shield, label: 'Utilisateurs', adminOnly: true },
   { href: '/dashboard/profile', icon: User, label: 'Mon Profil' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    getCurrentUserProfile().then(({ data }) => setIsAdmin(data?.profile.is_admin || false));
+  }, []);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
@@ -77,7 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Nav */}
       <nav className="flex-1 px-4 space-y-1">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (

@@ -64,6 +64,8 @@ CREATE TABLE user_profiles (
   role TEXT NOT NULL CHECK (role IN ('dentiste', 'assistant')),
   dentiste_id UUID REFERENCES dentistes(id) ON DELETE SET NULL,
   assistant_id UUID REFERENCES assistants(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_admin BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT one_role_only CHECK (
     (role = 'dentiste' AND dentiste_id IS NOT NULL AND assistant_id IS NULL) OR
@@ -305,6 +307,11 @@ ALTER TABLE assistants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE actes_medicaux ENABLE ROW LEVEL SECURITY;
 ALTER TABLE catalogues_actes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE catalogue_actes_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "user_profiles_select_own" ON user_profiles FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "user_profiles_select_admin" ON user_profiles FOR SELECT USING (EXISTS (SELECT 1 FROM user_profiles up WHERE up.user_id = auth.uid() AND up.is_admin = true));
+CREATE POLICY "user_profiles_update_admin" ON user_profiles FOR UPDATE USING (EXISTS (SELECT 1 FROM user_profiles up WHERE up.user_id = auth.uid() AND up.is_admin = true));
 
 CREATE POLICY "patients_select" ON patients FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "patients_insert" ON patients FOR INSERT WITH CHECK (current_user_role() IN ('dentiste', 'assistant'));

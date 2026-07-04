@@ -1,0 +1,15 @@
+# ============================================
+# Supabase PROD Environment
+# ============================================
+# URL de votre projet Supabase PROD
+NEXT_PUBLIC_SUPABASE_URL=https://rrfbxvlzefyrlkeksmlb.supabase.co
+
+# Clé anonyme publique pour accès client en PROD
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_6s27D7grTLxsjq-6DfMn_A_EMOMikKm
+
+# Clé de service pour accès admin (API routes) en PROD
+# ⚠️ NE PAS la exposer au client
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...votre_cle_service_prod
+
+# URL de connexion à la base de données PostgreSQL (optionnel)
+SUPABASE_DB_URL=postgresql://postgres:[PASSWORD_PROD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres

@@ -1,5 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
+
 import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -30,19 +30,3 @@ export const createClientServer = async () => {
   });
 };
 
-/**
- * ADMIN CLIENT
- * For administrative tasks in API Routes only.
- */
-export const createClientAdmin = () => {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) {
-    console.error('❌ Missing SUPABASE_SERVICE_ROLE_KEY');
-  }
-  return createClient(supabaseUrl, serviceRoleKey!, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
-};

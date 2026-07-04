@@ -3,6 +3,8 @@ export interface UserProfile {
   role: 'dentiste' | 'assistant';
   dentiste_id: string | null;
   assistant_id: string | null;
+  is_active: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 

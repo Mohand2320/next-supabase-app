@@ -9,17 +9,10 @@ export async function getCurrentUserProfile(): Promise<{ data: CurrentUserData |
     console.log('[getCurrentUserProfile] Démarrage de la récupération du profil...');
     const supabase = await createClientServer();
     
-    // 1. Vérification de la session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session) {
-      console.log('[getCurrentUserProfile] Aucune session active ou session expirée.');
-      return { data: null, error: 'Session expirée' };
-    }
-
-    // 2. Récupération de l'utilisateur
+    // 1. Récupération et vérification sécurisée de l'utilisateur
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.log('[getCurrentUserProfile] Utilisateur non connecté.');
+      console.log('[getCurrentUserProfile] Utilisateur non connecté ou session invalide.');
       return { data: null, error: 'Utilisateur non connecté' };
     }
 

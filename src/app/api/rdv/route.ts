@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClientServer } from '@/lib/supabase/server';
+import { requireRoles } from '@/lib/auth/guards';
 import { rdvDbToApi, rdvApiToDb } from '@/lib/mappers/rdv';
 import { rdvCreateSchema, rdvCalendarQuerySchema } from '@/lib/validations/rdv';
 
@@ -9,10 +10,9 @@ import { rdvCreateSchema, rdvCalendarQuerySchema } from '@/lib/validations/rdv';
 export async function GET(request: Request) {
   try {
     const supabase = await createClientServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { isAuthorized, error: authError } = await requireRoles(['admin', 'dentiste', 'assistant']);
+    if (!isAuthorized) {
+      return NextResponse.json({ error: authError }, { status: 403 });
     }
 
     const url = new URL(request.url);
@@ -72,10 +72,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClientServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { isAuthorized, user, error: authError } = await requireRoles(['admin', 'dentiste', 'assistant']);
+    if (!isAuthorized || !user) {
+      return NextResponse.json({ error: authError }, { status: 403 });
     }
 
     const body = await request.json();
