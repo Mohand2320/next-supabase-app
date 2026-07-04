@@ -107,15 +107,17 @@ export async function toggleUserStatus(userId: string, currentStatus: boolean): 
   }
 }
 
-export async function inviteUser(email: string, nom: string, prenom: string, role: 'dentiste' | 'assistant', specialiteOrLogin: string, isAdmin: boolean): Promise<{ success: boolean, error: string | null }> {
+export async function inviteUser(email: string, nom: string, prenom: string, role: 'dentiste' | 'assistant', specialiteOrLogin: string, isAdmin: boolean, password?: string): Promise<{ success: boolean, error: string | null }> {
   try {
     await requireAdmin();
 
-    // 1. Inviter l'utilisateur (Supabase envoie l'email automatiquement)
-    // On force la redirection vers notre route de callback pour qu'il puisse configurer son mot de passe
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { nom, prenom },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
+    // 1. Créer l'utilisateur avec un mot de passe (évite la limite d'emails de Supabase)
+    const defaultPassword = password || 'Cabinet2026!';
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: defaultPassword,
+      email_confirm: true, // Confirme directement l'email pour qu'ils puissent se connecter
+      user_metadata: { nom, prenom }
     });
 
     if (authError) throw authError;

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, User, Shield, Loader2, Briefcase, Key } from 'lucide-react';
+import { X, Mail, User, Shield, Loader2, Briefcase, Key, Lock } from 'lucide-react';
 import { inviteUser } from '@/services/admin.service';
 
 interface CreateUserModalProps {
@@ -18,6 +18,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
   const [role, setRole] = useState<'dentiste' | 'assistant'>('assistant');
   const [specialiteOrLogin, setSpecialiteOrLogin] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [password, setPassword] = useState('Cabinet2026!');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,13 +27,13 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
     e.preventDefault();
     setError(null);
 
-    if (!nom.trim() || !prenom.trim() || !email.trim()) {
-      setError("Le nom, le prénom et l'email sont obligatoires.");
+    if (!nom.trim() || !prenom.trim() || !email.trim() || !password.trim()) {
+      setError("Le nom, le prénom, l'email et le mot de passe sont obligatoires.");
       return;
     }
 
     setLoading(true);
-    const { success, error: submitError } = await inviteUser(email, nom, prenom, role, specialiteOrLogin, isAdmin);
+    const { success, error: submitError } = await inviteUser(email, nom, prenom, role, specialiteOrLogin, isAdmin, password);
     setLoading(false);
 
     if (success) {
@@ -42,6 +43,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
       setRole('assistant');
       setSpecialiteOrLogin('');
       setIsAdmin(false);
+      setPassword('Cabinet2026!');
       onSuccess();
     } else {
       setError(submitError || "Une erreur est survenue.");
@@ -131,6 +133,24 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
                   placeholder="jean.dupont@cabinet.fr"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-semibold text-slate-700">Mot de passe temporaire</label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Lock className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="Mot de passe par défaut"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500">L'utilisateur pourra s'authentifier immédiatement avec ce mot de passe sans validation d'e-mail.</p>
             </div>
 
             <div className="space-y-1.5">
