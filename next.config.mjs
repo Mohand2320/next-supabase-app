@@ -14,6 +14,9 @@ const nextConfig = {
     ];
   },
   async headers() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gqfkuylqsjphanrcfbpx.supabase.co';
+    const supabaseDomain = new URL(supabaseUrl).hostname;
+    
     return [
       {
         source: '/(.*)',
@@ -40,7 +43,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://gqfkuylqsjphanrcfbpx.supabase.co; connect-src 'self' https://gqfkuylqsjphanrcfbpx.supabase.co;",
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://${supabaseDomain}; connect-src 'self' https://${supabaseDomain};`,
           },
         ],
       },

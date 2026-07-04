@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClientServer } from '@/lib/supabase/server';
+import { requireRoles } from '@/lib/auth/guards';
 
 export async function GET() {
   try {
     const supabase = await createClientServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { isAuthorized, error: authError } = await requireRoles(['admin', 'dentiste', 'assistant']);
+    if (!isAuthorized) {
+      return NextResponse.json({ error: authError }, { status: 403 });
     }
 
     const { data, error } = await supabase

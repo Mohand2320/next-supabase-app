@@ -70,8 +70,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 4. Log request for debug (optional, can be removed once verified)
-  console.log(`[AUTH_MIDDLEWARE] ${user ? 'Authenticated' : 'Public'} access: ${url.pathname}`);
+  // 4. Log request for debug (removed for production)
 
   return response;
 }
