@@ -127,7 +127,7 @@ export default function PatientDetailPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2"><Stethoscope className="w-5 h-5 text-blue-600" /> Traitements</h3>
-            <button onClick={() => setShowTreatmentForm(!showTreatmentForm)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-100">
+            <button onClick={() => router.push(`/dashboard/patients/${id}/nouvelle-seance`)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-100">
               <PlusCircle className="w-4 h-4" /> <span className="hidden sm:inline">Ajouter</span>
             </button>
           </div>
