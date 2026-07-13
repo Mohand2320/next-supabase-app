@@ -3,7 +3,7 @@ import { createClientServer } from '@/lib/supabase/server';
 import { getCurrentUserProfile } from '@/services/user.service';
 import NouvelleSeanceForm from '@/components/seance-form/NouvelleSeanceForm';
 import { getCatalogueActes } from '@/components/seance-form/seance.service';
-import { ArrowLeft, User, Calendar, Activity } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Activity, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata = {
@@ -22,6 +22,7 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
   }
 
   let dentisteId = userData.profile.dentiste_id;
+  const dentisteNom = userData.data?.nom || userData.email || 'Dentiste';
 
   // Si c'est un assistant, et qu'il n'y a qu'un seul dentiste dans le cabinet :
   if (userData.role === 'assistant' || !dentisteId) {
@@ -39,7 +40,7 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
   if (!dentisteId) {
     return (
       <div className="p-8 text-center text-rose-600 bg-rose-50 rounded-xl">
-        Erreur : Impossible d'identifier le dentiste pour cette séance.
+        Erreur : Impossible d&apos;identifier le dentiste pour cette séance.
       </div>
     );
   }
@@ -58,6 +59,15 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
   // 3. Charger le catalogue
   const catalogueActes = await getCatalogueActes(supabase, dentisteId);
 
+  // Formater la date de naissance lisiblement
+  const dateNaissanceFormatted = patient.date_naissance
+    ? new Date(patient.date_naissance).toLocaleDateString('fr-FR')
+    : null;
+
+  const now = new Date();
+  const dateActuelle = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const heureActuelle = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6 pb-24">
       {/* Header */}
@@ -74,27 +84,45 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
             Feuille de soins
           </h1>
           <p className="text-slate-500 text-sm">
-            Création d'une nouvelle séance pour {patient.nom} {patient.prenom}
+            Création d&apos;une nouvelle séance
           </p>
         </div>
       </div>
 
-      {/* Patient Mini-Card */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-6">
+      {/* ── TÂCHE 1 : Bandeau unique Patient + Séance ── */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-x-8 gap-y-3">
+        {/* Avatar */}
         <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-lg font-bold shrink-0">
-          {patient.prenom[0]}{patient.nom[0]}
+          {patient.prenom?.[0]}{patient.nom?.[0]}
         </div>
-        <div className="flex flex-wrap gap-x-8 gap-y-2">
+
+        {/* Nom / Prénom */}
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <User className="w-4 h-4 text-slate-400" />
+          <span className="font-semibold text-slate-900">{patient.nom} {patient.prenom}</span>
+        </div>
+
+        {/* Date de naissance */}
+        {dateNaissanceFormatted && (
           <div className="flex items-center gap-2 text-sm text-slate-600">
-            <User className="w-4 h-4 text-slate-400" />
-            <span className="font-semibold text-slate-900">{patient.nom} {patient.prenom}</span>
+            <Calendar className="w-4 h-4 text-slate-400" />
+            <span>Né(e) le {dateNaissanceFormatted}</span>
           </div>
-          {patient.date_naissance && (
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              <span>Né(e) le {new Date(patient.date_naissance).toLocaleDateString('fr-FR')}</span>
-            </div>
-          )}
+        )}
+
+        {/* Séparateur visuel */}
+        <div className="hidden md:block w-px h-8 bg-slate-200" />
+
+        {/* Date et heure de la séance */}
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Clock className="w-4 h-4 text-slate-400" />
+          <span>{dateActuelle} — {heureActuelle}</span>
+        </div>
+
+        {/* Dentiste */}
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Activity className="w-4 h-4 text-slate-400" />
+          <span>Dr. {dentisteNom}</span>
         </div>
       </div>
 
@@ -103,6 +131,11 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
         patientId={patientId}
         dentisteId={dentisteId}
         catalogueActes={catalogueActes}
+        patient={{
+          nom: patient.nom,
+          prenom: patient.prenom,
+          dateNaissance: patient.date_naissance || null
+        }}
       />
     </div>
   );

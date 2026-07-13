@@ -3,33 +3,47 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientBrowser } from '@/lib/supabase/client';
-import { Loader2, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, CheckCircle2, Info } from 'lucide-react';
 import OdontogramSelector from './OdontogramSelector';
 import { enregistrerFeuilleDeSoins } from './seance.service';
+import {
+  formatMontant,
+  determinerDentureInitiale,
+  calculerAge,
+  SEUIL_AGE_ENFANT,
+} from './types';
 import type { 
   TypeDenture, 
   CatalogueActeItem, 
   LigneActeSaisie, 
-  ToothDetail 
+  ToothDetail,
+  PatientSeanceInfo
 } from './types';
 
 interface NouvelleSeanceFormProps {
   patientId: string;
   dentisteId: string;
-  seanceId?: string; // Optionnel, si on complète une séance issue d'un RDV
+  seanceId?: string;
   catalogueActes: CatalogueActeItem[];
+  patient: PatientSeanceInfo;
 }
 
 export default function NouvelleSeanceForm({
   patientId,
   dentisteId,
   seanceId,
-  catalogueActes
+  catalogueActes,
+  patient
 }: NouvelleSeanceFormProps) {
   const router = useRouter();
   const supabase = createClientBrowser();
+
+  // === TÂCHE 4 : Denture auto ===
+  const dentureInitiale = determinerDentureInitiale(patient.dateNaissance);
+  const agePatient = calculerAge(patient.dateNaissance);
+
   // === ETATS GLOBAUX SEANCE ===
-  const [typeDenture, setTypeDenture] = useState<TypeDenture>('ADULTE');
+  const [typeDenture, setTypeDenture] = useState<TypeDenture>(dentureInitiale);
   const [observations, setObservations] = useState('');
   const [dateHeure, setDateHeure] = useState(new Date().toISOString().slice(0, 16));
   
@@ -45,6 +59,9 @@ export default function NouvelleSeanceForm({
   // === ETATS SOUMISSION ===
   const [isSaving, setIsSaving] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+
+  // === Couleur de l'acte sélectionné ===
+  const acteSelectionne = catalogueActes.find(a => a.acteId === acteChoisiId);
 
   // === CALCULS ===
   const totalSeance = useMemo(() => {
@@ -68,12 +85,6 @@ export default function NouvelleSeanceForm({
 
   const handleAjouterLigne = () => {
     if (!acteChoisiId) return;
-    
-    // Validation: il n'est pas strictement obligatoire d'avoir une dent sélectionnée pour TOUS les actes 
-    // (ex: consultation), mais le prompt stipule "impossible d'ajouter une ligne sans dent sélectionnée".
-    // J'assouplis légèrement car certains actes (ex: détartrage complet) n'ont pas forcément de dent spécifique.
-    // S'il FAUT bloquer : décommenter la ligne ci-dessous.
-    // if (dentsSelectionnees.length === 0) return alert("Veuillez sélectionner au moins une dent sur le schéma.");
 
     const acte = catalogueActes.find(a => a.acteId === acteChoisiId);
     if (!acte) return;
@@ -84,7 +95,8 @@ export default function NouvelleSeanceForm({
       libelle: acte.libelle,
       quantite,
       prixApplique: prixUnitaire,
-      dentsFdi: dentsSelectionnees.map(d => d.id)
+      dentsFdi: dentsSelectionnees.map(d => d.id),
+      couleur: acte.couleur
     };
 
     setLignes([...lignes, nouvelleLigne]);
@@ -93,7 +105,6 @@ export default function NouvelleSeanceForm({
     setActeChoisiId('');
     setPrixUnitaire(0);
     setQuantite(1);
-    // On garde la sélection des dents ? En général oui pour enchaîner, mais la consigne dit "vide la sélection".
     setDentsSelectionnees([]);
   };
 
@@ -122,7 +133,7 @@ export default function NouvelleSeanceForm({
       });
       
       router.push(`/dashboard/patients/${patientId}`);
-      router.refresh(); // Pour rafraîchir les données de la page patient
+      router.refresh();
     } catch (err: any) {
       setErreur(err.message || "Une erreur est survenue lors de l'enregistrement.");
     } finally {
@@ -139,38 +150,36 @@ export default function NouvelleSeanceForm({
       
       {/* GAUCHE: Odontogramme & Observations (col-span-3) */}
       <div className="lg:col-span-3 space-y-6">
-        
-        {/* Toggle Type Denture & Date */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div>
-            <label className={labelClass}>Date et heure de la séance</label>
-            <input 
-              type="datetime-local" 
-              value={dateHeure} 
-              onChange={e => setDateHeure(e.target.value)} 
-              className={inputClass} 
-            />
+
+        {/* ── TÂCHE 4 : Toggle Denture avec indication ── */}
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-slate-700">Denture :</span>
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+            <button 
+              type="button"
+              onClick={() => setTypeDenture('ADULTE')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${typeDenture === 'ADULTE' ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Adulte
+            </button>
+            <button 
+              type="button"
+              onClick={() => setTypeDenture('ENFANT')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${typeDenture === 'ENFANT' ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Enfant
+            </button>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-slate-700">Denture :</span>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
-              <button 
-                type="button"
-                onClick={() => setTypeDenture('ADULTE')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${typeDenture === 'ADULTE' ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Adulte
-              </button>
-              <button 
-                type="button"
-                onClick={() => setTypeDenture('ENFANT')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${typeDenture === 'ENFANT' ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Enfant
-              </button>
-            </div>
-          </div>
+          {agePatient === null && (
+            <span className="flex items-center gap-1 text-xs text-amber-600" title={`Valeur par défaut. Ajoutez la date de naissance du patient pour un calcul automatique (seuil : ${SEUIL_AGE_ENFANT} ans).`}>
+              <Info className="w-3.5 h-3.5" /> Par défaut (date de naissance inconnue)
+            </span>
+          )}
+          {agePatient !== null && (
+            <span className="text-xs text-slate-400">
+              Patient : {agePatient} ans
+            </span>
+          )}
         </div>
 
         {/* Composant Odontogramme */}
@@ -222,6 +231,7 @@ export default function NouvelleSeanceForm({
           <div className="space-y-4">
             <div>
               <label className={labelClass}>Acte médical</label>
+              {/* ── TÂCHE 2 : Select sans prix, avec pastille couleur ── */}
               <select 
                 value={acteChoisiId} 
                 onChange={handleActeChange}
@@ -230,10 +240,22 @@ export default function NouvelleSeanceForm({
                 <option value="">-- Sélectionner un acte --</option>
                 {catalogueActes.map(acte => (
                   <option key={acte.acteId} value={acte.acteId}>
-                    {acte.libelle} ({acte.prix} €)
+                    {acte.libelle}
                   </option>
                 ))}
               </select>
+              {/* Pastille couleur de l'acte sélectionné */}
+              {acteSelectionne && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span 
+                    className="w-3 h-3 rounded-full inline-block shrink-0"
+                    style={{ backgroundColor: acteSelectionne.couleur }}
+                  />
+                  <span className="text-xs text-slate-500">
+                    {acteSelectionne.libelle}
+                  </span>
+                </div>
+              )}
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -248,7 +270,8 @@ export default function NouvelleSeanceForm({
                 />
               </div>
               <div>
-                <label className={labelClass}>Prix Appliqué (€)</label>
+                {/* ── TÂCHE 5 : Devise DA ── */}
+                <label className={labelClass}>Prix Appliqué (DA)</label>
                 <input 
                   type="number" 
                   min="0" 
@@ -283,9 +306,10 @@ export default function NouvelleSeanceForm({
             ) : (
               <ul className="space-y-3">
                 {lignes.map(ligne => (
-                  <li key={ligne.cleTemporaire} className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-start justify-between gap-2 group">
+                  <li key={ligne.cleTemporaire} className="p-3 rounded-lg border flex items-start justify-between gap-2 group" style={{ borderLeftWidth: 4, borderLeftColor: ligne.couleur, backgroundColor: `${ligne.couleur}08` }}>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate" title={ligne.libelle}>
+                      <p className="text-sm font-medium text-slate-900 truncate flex items-center gap-2" title={ligne.libelle}>
+                        <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: ligne.couleur }} />
                         {ligne.quantite}x {ligne.libelle}
                       </p>
                       <div className="flex flex-wrap gap-1 mt-1">
@@ -302,8 +326,9 @@ export default function NouvelleSeanceForm({
                     </div>
                     
                     <div className="flex flex-col items-end shrink-0 gap-1">
-                      <span className="text-sm font-bold text-teal-700">
-                        {(ligne.prixApplique * ligne.quantite).toFixed(2)} €
+                      {/* ── TÂCHE 5 : formatMontant ── */}
+                      <span className="text-sm font-bold" style={{ color: ligne.couleur }}>
+                        {formatMontant(ligne.prixApplique * ligne.quantite)}
                       </span>
                       <button 
                         onClick={() => handleSupprimerLigne(ligne.cleTemporaire)}
@@ -323,7 +348,8 @@ export default function NouvelleSeanceForm({
           <div className="p-4 bg-slate-50 rounded-b-xl border-t border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Total Séance</span>
-              <span className="text-2xl font-black text-slate-900">{totalSeance.toFixed(2)} €</span>
+              {/* ── TÂCHE 5 : formatMontant ── */}
+              <span className="text-2xl font-black text-slate-900">{formatMontant(totalSeance)}</span>
             </div>
             
             {erreur && (
