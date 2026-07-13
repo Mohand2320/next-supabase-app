@@ -4,10 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft, Edit2, Trash2, Loader2, Phone, Mail, MapPin,
-  Calendar, AlertTriangle, FileText, PlusCircle, Stethoscope
+  Calendar, AlertTriangle, FileText, PlusCircle, Stethoscope, Eye
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { Patient, Treatment, TreatmentInsert } from '@/types/patient';
+import PatientOdontogramDrawer from '@/components/patients/PatientOdontogramDrawer';
 
 export default function PatientDetailPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showTreatmentForm, setShowTreatmentForm] = useState(false);
   const [savingTreatment, setSavingTreatment] = useState(false);
+  const [showOdontogram, setShowOdontogram] = useState(false);
   const [treatmentForm, setTreatmentForm] = useState<Omit<TreatmentInsert, 'patient_id'>>({
     date: new Date().toISOString().split('T')[0], treatment_type: '', tooth_number: null, description: null, cost: 0,
   });
@@ -122,9 +124,17 @@ export default function PatientDetailPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2"><Stethoscope className="w-5 h-5 text-blue-600" /> Traitements</h3>
-            <button onClick={() => router.push(`/dashboard/patients/${id}/nouvelle-seance`)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-100">
-              <PlusCircle className="w-4 h-4" /> <span className="hidden sm:inline">Ajouter</span>
-            </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowOdontogram(true)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors"
+                >
+                  <Eye className="w-4 h-4" /> <span className="hidden sm:inline">Odontogramme</span>
+                </button>
+                <button onClick={() => router.push(`/dashboard/patients/${id}/nouvelle-seance`)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-100">
+                  <PlusCircle className="w-4 h-4" /> <span className="hidden sm:inline">Ajouter</span>
+                </button>
+              </div>
           </div>
 
           {showTreatmentForm && (
@@ -214,6 +224,14 @@ export default function PatientDetailPage() {
           )}
         </motion.div>
       </div>
+
+      <PatientOdontogramDrawer
+        isOpen={showOdontogram}
+        onClose={() => setShowOdontogram(false)}
+        patientName={`${patient.last_name} ${patient.first_name}`}
+        patientBirthDate={patient.date_of_birth}
+        treatments={treatments}
+      />
     </>
   );
 }
