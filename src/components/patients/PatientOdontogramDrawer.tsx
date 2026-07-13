@@ -1,14 +1,25 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'motion/react';
-import { X, Eye, CircleDot } from 'lucide-react';
+import { X, Eye, CircleDot, CalendarDays, FileText, DollarSign, Sparkles } from 'lucide-react';
 import type { Treatment } from '@/types/patient';
 import { determinerDentureInitiale } from '@/components/seance-form/types';
 import 'react-odontogram/style.css';
 
 const Odontogram = dynamic(() => import('react-odontogram'), { ssr: false });
+
+type ToothDetail = {
+  id: string;
+  label: string;
+  treatmentType: string;
+  color: string;
+  date: string;
+  description: string | null;
+  cost: number;
+  rawTooth: string;
+};
 
 interface ToothConditionGroup {
   label: string;
@@ -91,8 +102,10 @@ export default function PatientOdontogramDrawer({
   patientBirthDate,
   treatments,
 }: PatientOdontogramDrawerProps) {
-  const { typeDenture, odontogramConditions, legendItems } = useMemo(() => {
-    const latestByTooth = new Map<string, { treatmentType: string; color: string }>();
+  const [activeToothId, setActiveToothId] = useState<string | null>(null);
+
+  const { typeDenture, odontogramConditions, legendItems, toothDetails, activeTooth } = useMemo(() => {
+    const latestByTooth = new Map<string, ToothDetail>();
 
     treatments
       .slice()
@@ -100,7 +113,16 @@ export default function PatientOdontogramDrawer({
       .forEach((treatment) => {
         const color = colorForTreatmentType(treatment.treatment_type);
         parseToothNumbers(treatment.tooth_number).forEach((tooth) => {
-          latestByTooth.set(tooth, { treatmentType: treatment.treatment_type, color });
+          latestByTooth.set(tooth, {
+            id: tooth,
+            label: tooth.replace('teeth-', ''),
+            treatmentType: treatment.treatment_type,
+            color,
+            date: treatment.date,
+            description: treatment.description,
+            cost: treatment.cost,
+            rawTooth: treatment.tooth_number || '',
+          });
         });
       });
 
@@ -126,12 +148,63 @@ export default function PatientOdontogramDrawer({
       left.label.localeCompare(right.label, 'fr')
     );
 
+    const toothDetails = Array.from(latestByTooth.values()).sort((left, right) =>
+      Number(left.label) - Number(right.label)
+    );
+
+    const activeTooth = activeToothId ? latestByTooth.get(activeToothId) ?? null : null;
+
     return {
       typeDenture: determinerDentureInitiale(patientBirthDate),
       odontogramConditions: Array.from(conditionGroups.values()),
       legendItems,
+      toothDetails,
+      activeTooth,
     };
-  }, [patientBirthDate, treatments]);
+  }, [activeToothId, patientBirthDate, treatments]);
+
+  const activeTooltip = useMemo(() => {
+    return ({ id, notations, type }: any) => {
+      const tooth = toothDetails.find((item) => item.id === id) ?? toothDetails.find((item) => item.label === notations?.fdi) ?? null;
+      if (!tooth) {
+        return <div className="max-w-[220px] rounded-xl bg-slate-900 px-3 py-2 text-xs text-white shadow-xl">Aucun traitement enregistré</div>;
+      }
+
+      return (
+        <div className="max-w-[260px] rounded-xl bg-slate-900 px-3 py-3 text-white shadow-xl border border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tooth.color }} />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">Dent {tooth.label}</p>
+              <p className="text-[11px] text-slate-300 truncate">{type || notations?.fdi}</p>
+            </div>
+          </div>
+          <p className="text-xs font-semibold text-white">{tooth.treatmentType}</p>
+          <p className="mt-1 text-[11px] text-slate-300 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{new Date(tooth.date).toLocaleDateString('fr-FR')}</p>
+          <p className="mt-1 text-[11px] text-slate-300 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" />{Number(tooth.cost).toFixed(2)} DA</p>
+          <p className="mt-2 text-[11px] text-slate-400">Cliquez pour ouvrir le détail de cette dent.</p>
+        </div>
+      );
+    };
+  }, [toothDetails]);
+
+  const activeToothHistory = useMemo(() => {
+    if (!activeTooth) return [];
+
+    const toothNumber = activeTooth.id.replace('teeth-', '');
+    return treatments
+      .filter((treatment) => parseToothNumbers(treatment.tooth_number).includes(activeTooth.id))
+      .slice()
+      .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
+      .map((treatment) => ({
+        treatmentType: treatment.treatment_type,
+        color: colorForTreatmentType(treatment.treatment_type),
+        date: treatment.date,
+        description: treatment.description,
+        cost: treatment.cost,
+        toothNumber,
+      }));
+  }, [activeTooth, treatments]);
 
   return (
     <AnimatePresence>
@@ -180,24 +253,69 @@ export default function PatientOdontogramDrawer({
                 ))}
               </div>
 
-              <div className="pointer-events-none select-none overflow-x-auto rounded-xl border border-slate-100 bg-white p-2 sm:p-4">
+              <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                {activeTooth ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: activeTooth.color }} />
+                        <h3 className="text-sm font-bold text-slate-900 truncate">Dent {activeTooth.label}</h3>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{activeTooth.treatmentType}</p>
+                    </div>
+                    <button
+                      onClick={() => setActiveToothId(null)}
+                      className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Sparkles className="w-4 h-4" />
+                    Survolez une dent pour voir le dernier acte, cliquez pour ouvrir le détail.
+                  </div>
+                )}
+
+                {activeTooth && activeToothHistory.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {activeToothHistory.map((item) => (
+                      <div key={`${item.date}-${item.treatmentType}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <p className="text-sm font-semibold text-slate-900">{item.treatmentType}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{new Date(item.date).toLocaleDateString('fr-FR')}</p>
+                        <p className="mt-1 text-xs text-slate-500 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" />{Number(item.cost).toFixed(2)} DA</p>
+                        {item.description && <p className="mt-2 text-xs text-slate-600">{item.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white p-2 sm:p-4">
                 <Odontogram
                   notation="FDI"
                   showLabels={false}
-                  readOnly
-                  defaultSelected={[]}
+                  readOnly={false}
+                  singleSelect
+                  defaultSelected={activeToothId ? [activeToothId] : []}
                   maxTeeth={typeDenture === 'ENFANT' ? 5 : 8}
                   colors={{ lightBlue: '#0EA5E9', darkBlue: '#0EA5E9' }}
                   teethConditions={odontogramConditions}
-                  tooltip={undefined}
-                  showTooltip={false}
+                  tooltip={{
+                    placement: 'top',
+                    margin: 12,
+                    content: activeTooltip,
+                  }}
+                  showTooltip
+                  onChange={(selectedTeeth: Array<{ id: string }>) => {
+                    const nextSelected = selectedTeeth?.[0]?.id ?? null;
+                    setActiveToothId(nextSelected);
+                  }}
                   className="w-full"
                 />
-              </div>
-
-              <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
-                <CircleDot className="w-3.5 h-3.5" />
-                Mode lecture seule
               </div>
             </div>
           </motion.aside>
