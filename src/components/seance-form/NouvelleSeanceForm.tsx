@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientBrowser } from '@/lib/supabase/client';
 import { Loader2, Plus, Trash2, CheckCircle2 } from 'lucide-react';
-import OdontogramSelector from './OdontogramSelector';
+import OdontogramSelector, { ToothConditionGroup } from './OdontogramSelector';
 import { enregistrerFeuilleDeSoins } from './seance.service';
 import {
   formatMontant,
@@ -166,6 +166,32 @@ export default function NouvelleSeanceForm({
     }
   };
 
+  // Calculer les conditions des dents en fonction des actes déjà ajoutés (lignes)
+  const teethConditions = useMemo(() => {
+    const conditionMap = new Map<string, ToothConditionGroup>();
+
+    lignes.forEach(ligne => {
+      if (ligne.dentsFdi.length > 0) {
+        const key = ligne.acteId;
+        if (conditionMap.has(key)) {
+          const existing = conditionMap.get(key)!;
+          // Ajouter les dents qui ne sont pas déjà dans le tableau
+          const newTeeth = ligne.dentsFdi.filter(t => !existing.teeth.includes(t));
+          existing.teeth.push(...newTeeth);
+        } else {
+          conditionMap.set(key, {
+            label: ligne.libelle,
+            teeth: [...ligne.dentsFdi],
+            fillColor: ligne.couleur || '#0891B2',
+            outlineColor: ligne.couleur || '#0891B2',
+          });
+        }
+      }
+    });
+
+    return Array.from(conditionMap.values());
+  }, [lignes]);
+
   // Styles Tailwind partagés
   const inputClass = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
@@ -182,6 +208,8 @@ export default function NouvelleSeanceForm({
             typeDenture={typeDenture}
             selectedTeethIds={useMemo(() => dentsSelectionnees.map(d => d.id), [dentsSelectionnees])}
             onChange={handleChangeTeeth}
+            acteColor={acteSelectionne?.couleur}
+            teethConditions={teethConditions}
           />
           <div className="mt-3 px-2">
             <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Dents sélectionnées</h4>
