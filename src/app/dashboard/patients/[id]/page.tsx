@@ -20,6 +20,9 @@ export default function PatientDetailPage() {
   const [treatmentForm, setTreatmentForm] = useState<Omit<TreatmentInsert, 'patient_id'>>({
     date: new Date().toISOString().split('T')[0], treatment_type: '', tooth_number: null, description: null, cost: 0,
   });
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,7 +67,8 @@ export default function PatientDetailPage() {
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>;
   if (!patient) return <div className="flex min-h-[50vh] items-center justify-center"><p className="text-slate-500">Patient non trouvé.</p></div>;
 
-  const totalCost = treatments.reduce((sum, t) => sum + Number(t.cost), 0);
+  const totalPages = Math.ceil(treatments.length / itemsPerPage);
+  const currentTreatments = treatments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <>
@@ -85,7 +89,7 @@ export default function PatientDetailPage() {
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-4 sm:space-y-6">
         {/* Patient Info Cards */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Identity */}
           <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
@@ -109,15 +113,6 @@ export default function PatientDetailPage() {
             <div className="space-y-3 text-sm">
               <div><p className="font-medium text-slate-500 mb-1">Allergies</p><p className="text-slate-700">{patient.allergies || 'Aucune connue'}</p></div>
               <div><p className="font-medium text-slate-500 mb-1">Antécédents</p><p className="text-slate-700">{patient.medical_history || 'Aucun'}</p></div>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" /> Résumé</h4>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Traitements</span><span className="font-bold text-slate-900">{treatments.length}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Coût total</span><span className="font-bold text-slate-900">{totalCost.toFixed(2)} €</span></div>
               {patient.internal_notes && <div><p className="font-medium text-slate-500 mb-1">Notes internes</p><p className="text-slate-700 text-xs">{patient.internal_notes}</p></div>}
             </div>
           </div>
@@ -139,7 +134,7 @@ export default function PatientDetailPage() {
                 <div><label className="block text-sm font-medium text-slate-700 mb-1">Type de soin *</label><input value={treatmentForm.treatment_type} onChange={(e) => setTreatmentForm((p) => ({ ...p, treatment_type: e.target.value }))} className={inputClass} placeholder="Détartrage..." required /></div>
                 <div><label className="block text-sm font-medium text-slate-700 mb-1">Dent</label><input value={treatmentForm.tooth_number || ''} onChange={(e) => setTreatmentForm((p) => ({ ...p, tooth_number: e.target.value || null }))} className={inputClass} placeholder="14, 36..." /></div>
                 <div className="sm:col-span-2"><label className="block text-sm font-medium text-slate-700 mb-1">Description</label><input value={treatmentForm.description || ''} onChange={(e) => setTreatmentForm((p) => ({ ...p, description: e.target.value || null }))} className={inputClass} placeholder="Détails..." /></div>
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Coût (€) *</label><input type="number" step="0.01" min="0" value={treatmentForm.cost} onChange={(e) => setTreatmentForm((p) => ({ ...p, cost: parseFloat(e.target.value) || 0 }))} className={inputClass} required /></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Coût (DA) *</label><input type="number" step="0.01" min="0" value={treatmentForm.cost} onChange={(e) => setTreatmentForm((p) => ({ ...p, cost: parseFloat(e.target.value) || 0 }))} className={inputClass} required /></div>
               </div>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setShowTreatmentForm(false)} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-white transition-colors">Annuler</button>
@@ -156,11 +151,11 @@ export default function PatientDetailPage() {
             <>
               {/* Mobile: cards */}
               <div className="block sm:hidden divide-y divide-slate-100">
-                {treatments.map((t) => (
+                {currentTreatments.map((t) => (
                   <div key={t.id} className="p-4 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-900">{formatDate(t.date)}</span>
-                      <span className="text-sm font-semibold text-slate-900">{Number(t.cost).toFixed(2)} €</span>
+                      <span className="text-sm font-semibold text-slate-900">{Number(t.cost).toFixed(2)} DA</span>
                     </div>
                     <p className="text-sm text-slate-700">{t.treatment_type}{t.tooth_number ? ` — Dent ${t.tooth_number}` : ''}</p>
                     {t.description && <p className="text-xs text-slate-500">{t.description}</p>}
@@ -180,18 +175,41 @@ export default function PatientDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {treatments.map((t) => (
+                    {currentTreatments.map((t) => (
                       <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm text-slate-900 font-medium">{formatDate(t.date)}</td>
                         <td className="px-6 py-4 text-sm text-slate-700">{t.treatment_type}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{t.tooth_number || '—'}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{t.description || '—'}</td>
-                        <td className="px-6 py-4 text-sm text-slate-900 font-semibold text-right">{Number(t.cost).toFixed(2)} €</td>
+                        <td className="px-6 py-4 text-sm text-slate-900 font-semibold text-right">{Number(t.cost).toFixed(2)} DA</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-white">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg disabled:opacity-50 hover:bg-slate-200 transition-colors"
+                  >
+                    Précédent
+                  </button>
+                  <span className="text-sm text-slate-500">
+                    Page {currentPage} sur {totalPages}
+                  </span>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg disabled:opacity-50 hover:bg-slate-200 transition-colors"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
             </>
           )}
         </motion.div>
