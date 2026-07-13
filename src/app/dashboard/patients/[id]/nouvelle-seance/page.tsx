@@ -22,7 +22,6 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
   }
 
   let dentisteId = userData.profile.dentiste_id;
-  const dentisteNom = userData.data?.nom || userData.email || 'Dentiste';
 
   // Si c'est un assistant, et qu'il n'y a qu'un seul dentiste dans le cabinet :
   if (userData.role === 'assistant' || !dentisteId) {
@@ -67,6 +66,20 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
   const now = new Date();
   const dateActuelle = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const heureActuelle = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  // Calcul denture / âge
+  const SEUIL_AGE_ENFANT = 13;
+  function calculerAge(dateNaissance: string | null): number | null {
+    if (!dateNaissance) return null;
+    const naissance = new Date(dateNaissance);
+    const aujourdHui = new Date();
+    let age = aujourdHui.getFullYear() - naissance.getFullYear();
+    const m = aujourdHui.getMonth() - naissance.getMonth();
+    if (m < 0 || (m === 0 && aujourdHui.getDate() < naissance.getDate())) age--;
+    return age;
+  }
+  const patientAge = calculerAge(patient.date_naissance);
+  const dentureLabel = patientAge !== null && patientAge < SEUIL_AGE_ENFANT ? 'Enfant' : 'Adulte';
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6 pb-24">
@@ -119,10 +132,10 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
           <span>{dateActuelle} — {heureActuelle}</span>
         </div>
 
-        {/* Dentiste */}
+        {/* Denture */}
         <div className="flex items-center gap-2 text-sm text-slate-600">
           <Activity className="w-4 h-4 text-slate-400" />
-          <span>Dr. {dentisteNom}</span>
+          <span>Denture : {dentureLabel}{patientAge !== null ? ` — ${patientAge} ans` : ''}</span>
         </div>
       </div>
 

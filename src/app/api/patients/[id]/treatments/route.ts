@@ -18,15 +18,44 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: treatments, error } = await supabase
-      .from('treatments')
-      .select('*')
+    // Récupérer les séances (et actes) et les mapper au format attendu (historique)
+    const { data: seances, error } = await supabase
+      .from('seances')
+      .select(`
+        id,
+        patient_id,
+        date_heure,
+        observations,
+        prix,
+        created_at,
+        seance_actes (
+          quantite,
+          prix_applique,
+          localisation,
+          actes_medicaux ( libelle )
+        )
+      `)
       .eq('patient_id', id)
-      .order('date', { ascending: false });
+      .order('date_heure', { ascending: false });
 
     if (error) throw error;
 
-    return NextResponse.json(treatments);
+    const mappedTreatments = (seances || []).map((s: any) => {
+      const types = s.seance_actes?.map((a: any) => `${a.quantite}x ${a.actes_medicaux?.libelle}`).join(', ');
+      const localisations = Array.from(new Set(s.seance_actes?.flatMap((a: any) => a.localisation))).join(', ');
+      return {
+        id: s.id,
+        patient_id: s.patient_id,
+        date: s.date_heure,
+        treatment_type: types || 'Séance de soins',
+        tooth_number: localisations || null,
+        description: s.observations,
+        cost: s.prix,
+        created_at: s.created_at
+      };
+    });
+
+    return NextResponse.json(mappedTreatments);
   } catch (error: any) {
     console.error('[API_ERROR] GET /api/patients/[id]/treatments:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

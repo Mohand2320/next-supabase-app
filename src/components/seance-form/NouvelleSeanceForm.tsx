@@ -3,14 +3,12 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientBrowser } from '@/lib/supabase/client';
-import { Loader2, Plus, Trash2, CheckCircle2, Info } from 'lucide-react';
+import { Loader2, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import OdontogramSelector from './OdontogramSelector';
 import { enregistrerFeuilleDeSoins } from './seance.service';
 import {
   formatMontant,
   determinerDentureInitiale,
-  calculerAge,
-  SEUIL_AGE_ENFANT,
 } from './types';
 import type { 
   TypeDenture, 
@@ -40,10 +38,9 @@ export default function NouvelleSeanceForm({
 
   // === TÂCHE 4 : Denture auto ===
   const dentureInitiale = determinerDentureInitiale(patient.dateNaissance);
-  const agePatient = calculerAge(patient.dateNaissance);
 
   // === ETATS GLOBAUX SEANCE ===
-  const [typeDenture, setTypeDenture] = useState<TypeDenture>(dentureInitiale);
+  const typeDenture: TypeDenture = dentureInitiale;
   const [observations, setObservations] = useState('');
   const [dateHeure, setDateHeure] = useState(new Date().toISOString().slice(0, 16));
   
@@ -54,7 +51,7 @@ export default function NouvelleSeanceForm({
   // === ETATS FORMULAIRE D'AJOUT (Ligne en cours) ===
   const [acteChoisiId, setActeChoisiId] = useState<string>('');
   const [quantite, setQuantite] = useState<number>(1);
-  const [prixUnitaire, setPrixUnitaire] = useState<number>(0);
+  const [prixUnitaire, setPrixUnitaire] = useState<string>('');
 
   // === ETATS SOUMISSION ===
   const [isSaving, setIsSaving] = useState(false);
@@ -75,11 +72,11 @@ export default function NouvelleSeanceForm({
     if (id) {
       const acte = catalogueActes.find(a => a.acteId === id);
       if (acte) {
-        setPrixUnitaire(acte.prix);
+        setPrixUnitaire(acte.prix.toString());
         setQuantite(1);
       }
     } else {
-      setPrixUnitaire(0);
+      setPrixUnitaire('');
     }
   };
 
@@ -94,7 +91,7 @@ export default function NouvelleSeanceForm({
       acteId: acte.acteId,
       libelle: acte.libelle,
       quantite,
-      prixApplique: prixUnitaire,
+      prixApplique: parseFloat(prixUnitaire.replace(',', '.')) || 0,
       dentsFdi: dentsSelectionnees.map(d => d.id),
       couleur: acte.couleur
     };
@@ -103,7 +100,7 @@ export default function NouvelleSeanceForm({
 
     // Reset du formulaire d'ajout
     setActeChoisiId('');
-    setPrixUnitaire(0);
+    setPrixUnitaire('');
     setQuantite(1);
     setDentsSelectionnees([]);
   };
@@ -111,6 +108,19 @@ export default function NouvelleSeanceForm({
   const handleSupprimerLigne = (cle: string) => {
     setLignes(lignes.filter(l => l.cleTemporaire !== cle));
   };
+
+  // === TÂCHE : Correction du warning React-Odontogram ===
+  // react-odontogram a tendance à appeler onChange pendant sa phase de rendu (render phase).
+  // Cela provoque un avertissement React. On diffère la mise à jour pour l'éviter.
+  const handleChangeTeeth = React.useCallback((teeth: ToothDetail[]) => {
+    setTimeout(() => {
+      setDentsSelectionnees((prev) => {
+        // Évite une mise à jour d'état inutile si les dents n'ont pas changé
+        if (prev.length === teeth.length && prev.every((t, i) => t.id === teeth[i].id)) return prev;
+        return teeth;
+      });
+    }, 0);
+  }, []);
 
   const handleSauvegarder = async () => {
     if (lignes.length === 0) {
@@ -151,43 +161,12 @@ export default function NouvelleSeanceForm({
       {/* GAUCHE: Odontogramme & Observations (col-span-3) */}
       <div className="lg:col-span-3 space-y-6">
 
-        {/* ── TÂCHE 4 : Toggle Denture avec indication ── */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-slate-700">Denture :</span>
-          <div className="flex bg-slate-100 p-1 rounded-lg">
-            <button 
-              type="button"
-              onClick={() => setTypeDenture('ADULTE')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${typeDenture === 'ADULTE' ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Adulte
-            </button>
-            <button 
-              type="button"
-              onClick={() => setTypeDenture('ENFANT')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${typeDenture === 'ENFANT' ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Enfant
-            </button>
-          </div>
-          {agePatient === null && (
-            <span className="flex items-center gap-1 text-xs text-amber-600" title={`Valeur par défaut. Ajoutez la date de naissance du patient pour un calcul automatique (seuil : ${SEUIL_AGE_ENFANT} ans).`}>
-              <Info className="w-3.5 h-3.5" /> Par défaut (date de naissance inconnue)
-            </span>
-          )}
-          {agePatient !== null && (
-            <span className="text-xs text-slate-400">
-              Patient : {agePatient} ans
-            </span>
-          )}
-        </div>
-
         {/* Composant Odontogramme */}
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-2 overflow-hidden">
           <OdontogramSelector 
             typeDenture={typeDenture}
-            selectedTeethIds={dentsSelectionnees.map(d => d.id)}
-            onChange={(teeth) => setDentsSelectionnees(teeth)}
+            selectedTeethIds={useMemo(() => dentsSelectionnees.map(d => d.id), [dentsSelectionnees])}
+            onChange={handleChangeTeeth}
           />
           <div className="mt-3 px-2">
             <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Dents sélectionnées</h4>
@@ -273,12 +252,15 @@ export default function NouvelleSeanceForm({
                 {/* ── TÂCHE 5 : Devise DA ── */}
                 <label className={labelClass}>Prix Appliqué (DA)</label>
                 <input 
-                  type="number" 
-                  min="0" 
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={prixUnitaire} 
-                  onChange={e => setPrixUnitaire(parseFloat(e.target.value) || 0)}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (/^[\d.,]*$/.test(v)) setPrixUnitaire(v);
+                  }}
                   className={inputClass}
+                  placeholder="0"
                 />
               </div>
             </div>
