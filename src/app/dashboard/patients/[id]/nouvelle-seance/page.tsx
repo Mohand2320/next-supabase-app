@@ -15,8 +15,15 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
   const patientId = params.id;
   const supabase = await createClientServer();
 
-  // 1. Vérification auth et récupération Dentiste
-  const { data: userData } = await getCurrentUserProfile();
+  // 1 & 2. Lancer les requêtes en parallèle (Auth/Profil et Données Patient)
+  const [userResult, patientResult] = await Promise.all([
+    getCurrentUserProfile(),
+    supabase.from('patients').select('*').eq('id', patientId).single()
+  ]);
+
+  const { data: userData } = userResult;
+  const { data: patient } = patientResult;
+
   if (!userData) {
     redirect('/login');
   }
@@ -44,18 +51,11 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
     );
   }
 
-  // 2. Charger les infos du patient
-  const { data: patient } = await supabase
-    .from('patients')
-    .select('*')
-    .eq('id', patientId)
-    .single();
-
   if (!patient) {
     notFound();
   }
 
-  // 3. Charger le catalogue
+  // 3. Charger le catalogue (dépend du dentiste)
   const catalogueActes = await getCatalogueActes(supabase, dentisteId);
 
   // Formater la date de naissance lisiblement

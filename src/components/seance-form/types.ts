@@ -72,6 +72,18 @@ export function formatMontant(valeur: number): string {
   return `${valeur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${DEVISE}`;
 }
 
+/**
+ * Convertit une chaîne saisie par l'utilisateur (pouvant contenir virgule ou espace) en nombre.
+ * Ex: parseMontant("1 500,50") → 1500.5
+ */
+export function parseMontant(valeur: string): number {
+  if (!valeur) return 0;
+  // Remplace la virgule par un point et supprime les espaces (ex: "1 500,50" -> "1500.50")
+  const cleaned = valeur.replace(/,/g, '.').replace(/\s/g, '');
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 // ─── Calcul denture ─────────────────────────────────────────
 /**
  * Calcule l'âge d'un patient à partir de sa date de naissance.

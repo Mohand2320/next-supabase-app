@@ -8,6 +8,7 @@ import OdontogramSelector from './OdontogramSelector';
 import { enregistrerFeuilleDeSoins } from './seance.service';
 import {
   formatMontant,
+  parseMontant,
   determinerDentureInitiale,
 } from './types';
 import type { 
@@ -91,7 +92,7 @@ export default function NouvelleSeanceForm({
       acteId: acte.acteId,
       libelle: acte.libelle,
       quantite,
-      prixApplique: parseFloat(prixUnitaire.replace(',', '.')) || 0,
+      prixApplique: parseMontant(prixUnitaire),
       dentsFdi: dentsSelectionnees.map(d => d.id),
       couleur: acte.couleur
     };
