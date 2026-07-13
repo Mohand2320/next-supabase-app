@@ -11,31 +11,23 @@ import { AnimatePresence, motion } from 'motion/react';
 import { getCurrentUserProfile } from '@/services/user.service';
 import { createClientBrowser } from '@/lib/supabase/client';
 
-function UserProfileDisplay() {
+function UserProfileDisplay({ userData }: { userData: any }) {
   const [name, setName] = useState('Chargement...');
   const [role, setRole] = useState('');
 
   useEffect(() => {
-    async function load() {
-      const { data } = await getCurrentUserProfile();
-      if (data) {
-        if (data.data) {
-          setName(`${data.data.prenom} ${data.data.nom}`);
-          setRole(data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)');
-        }
-      } else {
-        const supabase = createClientBrowser();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setName(user.email || 'Mon Compte');
-          setRole('Profil à configurer');
-        } else {
-          setName('Non connecté');
-        }
+    if (userData) {
+      if (userData.data) {
+        setName(`${userData.data.prenom} ${userData.data.nom}`);
+        setRole(userData.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)');
+      } else if (userData.email) {
+        setName(userData.email);
+        setRole('Profil à configurer');
       }
+    } else if (userData === false) {
+      setName('Non connecté');
     }
-    load();
-  }, []);
+  }, [userData]);
 
   return (
     <>
@@ -59,10 +51,26 @@ const NAV_ITEMS = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [userData, setUserData] = useState<any>(null);
   const pathname = usePathname();
 
   useEffect(() => {
-    getCurrentUserProfile().then(({ data }) => setIsAdmin(data?.profile.is_admin || false));
+    async function loadUser() {
+      const { data } = await getCurrentUserProfile();
+      if (data) {
+        setIsAdmin(data.profile.is_admin || false);
+        setUserData(data);
+      } else {
+        const supabase = createClientBrowser();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserData({ email: user.email });
+        } else {
+          setUserData(false);
+        }
+      }
+    }
+    loadUser();
   }, []);
 
   const isActive = (href: string) => {
@@ -113,7 +121,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <User className="h-5 w-5 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <UserProfileDisplay />
+            <UserProfileDisplay userData={userData} />
           </div>
         </a>
       </div>

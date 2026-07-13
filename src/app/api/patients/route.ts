@@ -56,12 +56,31 @@ function normalizeCreationPreset(value: string | null) {
   return 'all';
 }
 
+// Rate limiter en mémoire très simple (Note: en serverless multi-instances, cela limite par conteneur, ce qui est généralement suffisant pour du throttling basique)
+const rateLimitMap = new Map<string, { count: number, resetTime: number }>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(userId);
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + 60000 }); // 60 secondes
+    return true;
+  }
+  if (record.count >= 60) return false; // Max 60 requêtes par minute par utilisateur
+  record.count++;
+  return true;
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClientServer();
-    const { isAuthorized, error: authError } = await requireRoles(['admin', 'dentiste', 'assistant']);
+    const { isAuthorized, user, error: authError } = await requireRoles(['admin', 'dentiste', 'assistant']);
     if (!isAuthorized) {
       return NextResponse.json({ error: authError }, { status: 403 });
+    }
+
+    if (user && !checkRateLimit(user.id)) {
+      return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
     }
 
     const url = new URL(request.url);

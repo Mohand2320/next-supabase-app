@@ -18,8 +18,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Récupérer l'historique via la vue agrégée
     const { data: treatments, error } = await supabase
-      .from('treatments')
+      .from('v_historique_seances')
       .select('*')
       .eq('patient_id', id)
       .order('date', { ascending: false });
