@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'motion/react';
-import { X, Eye, CircleDot, CalendarDays, FileText, DollarSign, Sparkles } from 'lucide-react';
+import { X, Eye, CalendarDays, FileText, DollarSign, Sparkles } from 'lucide-react';
 import type { Treatment } from '@/types/patient';
 import { determinerDentureInitiale } from '@/components/seance-form/types';
 import 'react-odontogram/style.css';
@@ -104,7 +104,7 @@ export default function PatientOdontogramDrawer({
 }: PatientOdontogramDrawerProps) {
   const [activeToothId, setActiveToothId] = useState<string | null>(null);
 
-  const { typeDenture, odontogramConditions, legendItems, toothDetails, activeTooth } = useMemo(() => {
+  const { typeDenture, odontogramConditions, toothDetails, activeTooth } = useMemo(() => {
     const latestByTooth = new Map<string, ToothDetail>();
 
     treatments
@@ -144,10 +144,6 @@ export default function PatientOdontogramDrawer({
       });
     });
 
-    const legendItems = Array.from(conditionGroups.values()).sort((left, right) =>
-      left.label.localeCompare(right.label, 'fr')
-    );
-
     const toothDetails = Array.from(latestByTooth.values()).sort((left, right) =>
       Number(left.label) - Number(right.label)
     );
@@ -157,7 +153,6 @@ export default function PatientOdontogramDrawer({
     return {
       typeDenture: determinerDentureInitiale(patientBirthDate),
       odontogramConditions: Array.from(conditionGroups.values()),
-      legendItems,
       toothDetails,
       activeTooth,
     };
@@ -244,15 +239,6 @@ export default function PatientOdontogramDrawer({
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <div className="mb-3 flex flex-wrap gap-2">
-                {legendItems.map((item) => (
-                  <div key={`${item.label}-${item.fillColor}`} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fillColor }} />
-                    <span className="truncate max-w-[14rem]">{item.label}</span>
-                  </div>
-                ))}
-              </div>
-
               <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                 {activeTooth ? (
                   <div className="flex items-start justify-between gap-3">
