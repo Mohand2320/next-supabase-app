@@ -40,7 +40,7 @@ export async function getCatalogueActes(
   }
 
   // 4. Fusionner les deux — inclure la couleur
-  return (actesBase || []).map((acte: any) => {
+  const allActs = (actesBase || []).map((acte: any) => {
     const custom = itemsPersonnalises.find(i => i.acte_id === acte.id);
     return {
       acteId: acte.id,
@@ -50,7 +50,20 @@ export async function getCatalogueActes(
         : Number(acte.prix_defaut),
       couleur: acte.couleur || COULEUR_DEFAUT
     };
-  }).sort((a, b) => a.libelle.localeCompare(b.libelle));
+  });
+
+  // 5. Dédupliquer par libellé (pour éviter les doublons/triplons signalés)
+  const uniqueActs: CatalogueActeItem[] = [];
+  const seen = new Set<string>();
+  for (const acte of allActs) {
+    const key = acte.libelle.trim().toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueActs.push(acte);
+    }
+  }
+
+  return uniqueActs.sort((a, b) => a.libelle.localeCompare(b.libelle));
 }
 
 /**

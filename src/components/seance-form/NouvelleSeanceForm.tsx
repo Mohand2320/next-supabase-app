@@ -53,6 +53,10 @@ export default function NouvelleSeanceForm({
   const [acteChoisiId, setActeChoisiId] = useState<string>('');
   const [quantite, setQuantite] = useState<number>(1);
   const [prixUnitaire, setPrixUnitaire] = useState<string>('');
+  
+  // Recherche (Combobox)
+  const [rechercheActe, setRechercheActe] = useState('');
+  const [dropdownOuvert, setDropdownOuvert] = useState(false);
 
   // === ETATS SOUMISSION ===
   const [isSaving, setIsSaving] = useState(false);
@@ -61,23 +65,32 @@ export default function NouvelleSeanceForm({
   // === Couleur de l'acte sélectionné ===
   const acteSelectionne = catalogueActes.find(a => a.acteId === acteChoisiId);
 
+  // === ACTES FILTRÉS ===
+  const actesFiltres = useMemo(() => {
+    if (!rechercheActe) return catalogueActes;
+    const lower = rechercheActe.toLowerCase();
+    return catalogueActes.filter(a => a.libelle.toLowerCase().includes(lower));
+  }, [catalogueActes, rechercheActe]);
+
   // === CALCULS ===
   const totalSeance = useMemo(() => {
     return lignes.reduce((acc, ligne) => acc + (ligne.prixApplique * ligne.quantite), 0);
   }, [lignes]);
 
   // === HANDLERS ===
-  const handleActeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
+  const selectionnerActe = (id: string) => {
     setActeChoisiId(id);
     if (id) {
       const acte = catalogueActes.find(a => a.acteId === id);
       if (acte) {
         setPrixUnitaire(acte.prix.toString());
         setQuantite(1);
+        setRechercheActe(acte.libelle); // On affiche le libellé complet
+        setDropdownOuvert(false);
       }
     } else {
       setPrixUnitaire('');
+      setRechercheActe('');
     }
   };
 
@@ -104,6 +117,7 @@ export default function NouvelleSeanceForm({
     setPrixUnitaire('');
     setQuantite(1);
     setDentsSelectionnees([]);
+    setRechercheActe(''); // Réinitialise la recherche
   };
 
   const handleSupprimerLigne = (cle: string) => {
@@ -209,29 +223,60 @@ export default function NouvelleSeanceForm({
           </h3>
           
           <div className="space-y-4">
-            <div>
+            <div className="relative">
               <label className={labelClass}>Acte médical</label>
-              {/* ── TÂCHE 2 : Select sans prix, avec pastille couleur ── */}
-              <select 
-                value={acteChoisiId} 
-                onChange={handleActeChange}
-                className={inputClass}
-              >
-                <option value="">-- Sélectionner un acte --</option>
-                {catalogueActes.map(acte => (
-                  <option key={acte.acteId} value={acte.acteId}>
-                    {acte.libelle}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={rechercheActe}
+                  onChange={(e) => {
+                    setRechercheActe(e.target.value);
+                    setDropdownOuvert(true);
+                    if (acteChoisiId) setActeChoisiId(''); // Réinitialiser l'ID si on tape
+                  }}
+                  onFocus={() => setDropdownOuvert(true)}
+                  onBlur={() => {
+                    // Délai pour permettre le clic sur une option (onMouseDown est utilisé mais par sécurité)
+                    setTimeout(() => setDropdownOuvert(false), 200);
+                  }}
+                  placeholder="Rechercher ou sélectionner un acte..."
+                  className={inputClass}
+                />
+                
+                {dropdownOuvert && (
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {actesFiltres.length === 0 ? (
+                      <li className="px-3 py-2 text-sm text-slate-500 text-center">Aucun acte trouvé</li>
+                    ) : (
+                      actesFiltres.map(acte => (
+                        <li 
+                          key={acte.acteId}
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // Empêche le blur de l'input avant le clic
+                            selectionnerActe(acte.acteId);
+                          }}
+                          className="px-3 py-2 text-sm hover:bg-teal-50 cursor-pointer flex items-center gap-2 transition-colors border-b border-slate-50 last:border-0"
+                        >
+                          <span 
+                            className="w-2.5 h-2.5 rounded-full shrink-0" 
+                            style={{ backgroundColor: acte.couleur }} 
+                          />
+                          <span className="truncate">{acte.libelle}</span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
+              
               {/* Pastille couleur de l'acte sélectionné */}
               {acteSelectionne && (
-                <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex items-center gap-2 mt-2">
                   <span 
-                    className="w-3 h-3 rounded-full inline-block shrink-0"
+                    className="w-3 h-3 rounded-full inline-block shrink-0 shadow-sm"
                     style={{ backgroundColor: acteSelectionne.couleur }}
                   />
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs font-semibold text-slate-700 truncate">
                     {acteSelectionne.libelle}
                   </span>
                 </div>
