@@ -11,6 +11,7 @@ import RdvCancelModal from '@/components/agenda/RdvCancelModal';
 import { createRdv, fetchRdv, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
 import type { RendezVous, RdvCreatePayload, OrigineAnnulation } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
+import { RowActions } from '@/components/ui/row-actions';
 
 // --- Types ---
 
@@ -391,12 +392,11 @@ export default function RendezVousPage() {
                       <span className="text-sm font-bold text-slate-900">{formatHeure(apt.date_heure)}</span>
                       <div className="flex items-center gap-2">
                         <StatusBadge statut={apt.statut} />
-                        <button
-                          onClick={() => openDrawer(apt)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <RowActions
+                          actions={[
+                            { icon: Eye, label: 'Voir le rendez-vous', onClick: () => openDrawer(apt) },
+                          ]}
+                        />
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -450,12 +450,11 @@ export default function RendezVousPage() {
                         <td className="px-6 py-4 text-sm text-slate-500">{apt.motif || '—'}</td>
                         <td className="px-6 py-4"><StatusBadge statut={apt.statut} /></td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => openDrawer(apt)}
-                            className="inline-flex items-center gap-1 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          <RowActions
+                            actions={[
+                              { icon: Eye, label: 'Voir le rendez-vous', onClick: () => openDrawer(apt) },
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))}
