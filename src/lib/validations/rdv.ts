@@ -91,6 +91,8 @@ export const rdvCalendarQuerySchema = z.object({
   date_fin: z.string().min(1, 'Date de fin requise'),
   dentiste_id: z.string().uuid().optional(),
   statut: z.string().optional(), // comma-separated statuts
+  search: z.string().trim().optional().default(''),
+  sort: z.enum(['date_asc', 'date_desc']).optional().default('date_asc'),
 });
 
 export type RdvCalendarQuery = z.infer<typeof rdvCalendarQuerySchema>;

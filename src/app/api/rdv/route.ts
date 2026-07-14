@@ -20,11 +20,14 @@ export async function GET(request: Request) {
     const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '200', 10) || 200));
     const offset = (page - 1) * limit;
 
+    const searchParam = url.searchParams.get('search') ?? '';
     const params = {
       date_debut: url.searchParams.get('date_debut') ?? '',
       date_fin: url.searchParams.get('date_fin') ?? '',
       dentiste_id: url.searchParams.get('dentiste_id') ?? undefined,
       statut: url.searchParams.get('statut') ?? undefined,
+      search: searchParam,
+      sort: (url.searchParams.get('sort') as 'date_asc' | 'date_desc') ?? 'date_asc',
     };
 
     const validation = rdvCalendarQuerySchema.safeParse(params);
@@ -42,7 +45,7 @@ export async function GET(request: Request) {
       .select('*, patients(id, nom, prenom, telephone), dentistes(id, nom, prenom)', { count: 'exact' })
       .gte('date_heure', query.date_debut)
       .lte('date_heure', query.date_fin)
-      .order('date_heure', { ascending: true });
+      .order('date_heure', { ascending: query.sort === 'date_asc' });
 
     if (query.dentiste_id) {
       builder = builder.eq('dentiste_id', query.dentiste_id);
@@ -51,6 +54,23 @@ export async function GET(request: Request) {
     if (query.statut) {
       const statuts = query.statut.split(',').map(s => s.trim());
       builder = builder.in('statut', statuts);
+    }
+
+    if (query.search) {
+      const search = `%${query.search}%`;
+      const { data: matchingPatients } = await supabase
+        .from('patients')
+        .select('id')
+        .or(`nom.ilike.${search},prenom.ilike.${search}`);
+      const patientIds = (matchingPatients || []).map((p: any) => p.id);
+
+      const searchConditions: string[] = [];
+      searchConditions.push(`nom_minimal.ilike.${search}`);
+      searchConditions.push(`prenom_minimal.ilike.${search}`);
+      if (patientIds.length > 0) {
+        searchConditions.push(`patient_id.in.(${patientIds.join(',')})`);
+      }
+      builder = builder.or(searchConditions.join(','));
     }
 
     const { data, count, error } = await builder.range(offset, offset + limit - 1);

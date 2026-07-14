@@ -33,6 +33,8 @@ export async function fetchRdvs(
   if (filters.statut && filters.statut.length > 0) {
     params.set('statut', filters.statut.join(','));
   }
+  if (filters.search) params.set('search', filters.search);
+  if (filters.sort) params.set('sort', filters.sort);
   if (pagination?.page) params.set('page', String(pagination.page));
   if (pagination?.limit) params.set('limit', String(pagination.limit));
 
