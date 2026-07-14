@@ -12,7 +12,7 @@ import RdvDetailModal from '@/components/agenda/RdvDetailModal';
 import type { RendezVous } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
 import { RowActions } from '@/components/ui/row-actions';
-import { fetchRdvs } from '@/services/rdv.service';
+import { fetchRdvs as fetchRdvsApi } from '@/services/rdv.service';
 
 // --- Types ---
 
@@ -183,8 +183,8 @@ export default function DashboardPage() {
       const todayStart = startOfDay(new Date());
       const todayEnd = endOfDay(new Date());
 
-      const result = await fetchRdvs(
-        { date_debut: todayStart.toISOString(), date_fin: todayEnd.toISOString() },
+      const result = await fetchRdvsApi(
+        { date_debut: todayStart, date_fin: todayEnd },
         undefined,
         { limit: 200 }
       );

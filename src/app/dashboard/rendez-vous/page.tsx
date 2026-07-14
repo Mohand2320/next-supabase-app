@@ -7,7 +7,7 @@ import Link from 'next/link';
 import RdvCreateModal from '@/components/agenda/RdvCreateModal';
 import RdvDrawer from '@/components/agenda/RdvDrawer';
 import RdvCancelModal from '@/components/agenda/RdvCancelModal';
-import { createRdv, fetchRdv, fetchRdvs, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
+import { createRdv, fetchRdv, fetchRdvs as fetchRdvsApi, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
 import type { RendezVous, RdvCreatePayload, OrigineAnnulation } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
 import { RowActions } from '@/components/ui/row-actions';
@@ -98,7 +98,7 @@ export default function RendezVousPage() {
       const start = new Date();
       start.setFullYear(start.getFullYear() - 1);
 
-      const result = await fetchRdvs(
+      const result = await fetchRdvsApi(
         { date_debut: start.toISOString(), date_fin: end.toISOString() },
         undefined,
         { limit: 500 }
