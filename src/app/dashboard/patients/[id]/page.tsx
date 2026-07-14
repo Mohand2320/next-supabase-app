@@ -1,20 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft, Edit2, Trash2, Loader2, Phone, Mail, MapPin,
-  Calendar, AlertTriangle, FileText, PlusCircle, Stethoscope, Eye
+  Calendar, AlertTriangle, PlusCircle, Stethoscope, Eye
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { Patient, Treatment, TreatmentInsert } from '@/types/patient';
 import PatientOdontogramDrawer from '@/components/patients/PatientOdontogramDrawer';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 
 export default function PatientDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const [patient, setPatient] = useState<Patient | null>(null);
-  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [allTreatments, setAllTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTreatmentForm, setShowTreatmentForm] = useState(false);
   const [savingTreatment, setSavingTreatment] = useState(false);
@@ -22,24 +23,38 @@ export default function PatientDetailPage() {
   const [treatmentForm, setTreatmentForm] = useState<Omit<TreatmentInsert, 'patient_id'>>({
     date: new Date().toISOString().split('T')[0], treatment_type: '', tooth_number: null, description: null, cost: 0,
   });
-  
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+
+  const {
+    data: treatments,
+    setPage: setTreatmentPage,
+    currentPage: treatmentPage,
+    totalPages: treatmentTotalPages,
+  } = usePaginatedList<Treatment>(
+    `/api/patients/${id}/treatments`,
+    {},
+    { defaultLimit: 10, deps: [id], enabled: !!id }
+  );
+
+  const fetchForOdontogram = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/patients/${id}/treatments?limit=200`);
+      const json = await res.json();
+      if (res.ok) setAllTreatments(json.data || []);
+    } catch {}
+  }, [id]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPatient = async () => {
       setLoading(true);
       try {
-        const [pRes, tRes] = await Promise.all([fetch(`/api/patients/${id}`), fetch(`/api/patients/${id}/treatments`)]);
+        const pRes = await fetch(`/api/patients/${id}`);
         const pData = await pRes.json();
-        const tData = await tRes.json();
         if (!pRes.ok) throw new Error(pData.error);
         setPatient(pData);
-        setTreatments(Array.isArray(tData) ? tData : []);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
-    fetchData();
+    fetchPatient();
   }, [id]);
 
   const handleDelete = async () => {
@@ -55,7 +70,7 @@ export default function PatientDetailPage() {
       const res = await fetch(`/api/patients/${id}/treatments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(treatmentForm) });
       if (!res.ok) throw new Error('Erreur');
       const newT = await res.json();
-      setTreatments((prev) => [newT, ...prev]);
+      setAllTreatments((prev) => [newT, ...prev]);
       setShowTreatmentForm(false);
       setTreatmentForm({ date: new Date().toISOString().split('T')[0], treatment_type: '', tooth_number: null, description: null, cost: 0 });
     } catch (err) { console.error(err); }
@@ -69,8 +84,7 @@ export default function PatientDetailPage() {
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>;
   if (!patient) return <div className="flex min-h-[50vh] items-center justify-center"><p className="text-slate-500">Patient non trouvé.</p></div>;
 
-  const totalPages = Math.ceil(treatments.length / itemsPerPage);
-  const currentTreatments = treatments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = treatmentTotalPages;
 
   return (
     <>
@@ -126,7 +140,7 @@ export default function PatientDetailPage() {
             <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2"><Stethoscope className="w-5 h-5 text-blue-600" /> Traitements</h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowOdontogram(true)}
+                  onClick={() => { fetchForOdontogram(); setShowOdontogram(true); }}
                   className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors"
                 >
                   <Eye className="w-4 h-4" /> <span className="hidden sm:inline">Odontogramme</span>
@@ -161,7 +175,7 @@ export default function PatientDetailPage() {
             <>
               {/* Mobile: cards */}
               <div className="block sm:hidden divide-y divide-slate-100">
-                {currentTreatments.map((t) => (
+                {treatments.map((t) => (
                   <div key={t.id} className="p-4 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-900">{formatDate(t.date)}</span>
@@ -185,7 +199,7 @@ export default function PatientDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {currentTreatments.map((t) => (
+                    {treatments.map((t) => (
                       <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm text-slate-900 font-medium">{formatDate(t.date)}</td>
                         <td className="px-6 py-4 text-sm text-slate-700">{t.treatment_type}</td>
@@ -201,19 +215,19 @@ export default function PatientDetailPage() {
               {/* Pagination controls */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-white">
-                  <button 
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                  <button
+                    onClick={() => setTreatmentPage(treatmentPage - 1)}
+                    disabled={treatmentPage <= 1}
                     className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg disabled:opacity-50 hover:bg-slate-200 transition-colors"
                   >
                     Précédent
                   </button>
                   <span className="text-sm text-slate-500">
-                    Page {currentPage} sur {totalPages}
+                    Page {treatmentPage} sur {totalPages}
                   </span>
-                  <button 
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
+                  <button
+                    onClick={() => setTreatmentPage(treatmentPage + 1)}
+                    disabled={treatmentPage >= totalPages}
                     className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg disabled:opacity-50 hover:bg-slate-200 transition-colors"
                   >
                     Suivant
@@ -230,7 +244,7 @@ export default function PatientDetailPage() {
         onClose={() => setShowOdontogram(false)}
         patientName={`${patient.last_name} ${patient.first_name}`}
         patientBirthDate={patient.date_of_birth}
-        treatments={treatments}
+        treatments={allTreatments}
       />
     </>
   );
