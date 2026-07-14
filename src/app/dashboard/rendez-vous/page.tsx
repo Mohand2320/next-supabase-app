@@ -4,11 +4,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { CalendarCheck, PlusCircle, Search, X, Loader2, ChevronLeft, ChevronRight, ArrowUpDown, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
-import { createClientBrowser } from '@/lib/supabase/client';
 import RdvCreateModal from '@/components/agenda/RdvCreateModal';
 import RdvDrawer from '@/components/agenda/RdvDrawer';
 import RdvCancelModal from '@/components/agenda/RdvCancelModal';
-import { createRdv, fetchRdv, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
+import { createRdv, fetchRdv, fetchRdvs, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
 import type { RendezVous, RdvCreatePayload, OrigineAnnulation } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
 import { RowActions } from '@/components/ui/row-actions';
@@ -95,16 +94,17 @@ export default function RendezVousPage() {
     setLoading(true);
     setError(null);
     try {
-      const supabase = createClientBrowser();
-      const { data, error: err } = await supabase
-        .from('rendez_vous')
-        .select('*, patients(id, nom, prenom, telephone)')
-        .order('date_heure', { ascending: false })
-        .limit(500);
+      const end = new Date();
+      const start = new Date();
+      start.setFullYear(start.getFullYear() - 1);
 
-      if (err) throw err;
+      const result = await fetchRdvs(
+        { date_debut: start.toISOString(), date_fin: end.toISOString() },
+        undefined,
+        { limit: 500 }
+      );
 
-      const mapped: RdvRow[] = (data || []).map((r: any) => ({
+      const mapped: RdvRow[] = (result.data || []).map((r: any) => ({
         id: r.id,
         date_heure: r.date_heure,
         duree: r.duree ?? 30,

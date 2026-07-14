@@ -134,7 +134,7 @@ export function useAgenda(): UseAgendaReturn {
         { date_debut: start, date_fin: end },
         controller.signal
       );
-      setRdvs(result.data);
+      setRdvs(result.data || []);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         setError(err.message || 'Erreur de chargement');

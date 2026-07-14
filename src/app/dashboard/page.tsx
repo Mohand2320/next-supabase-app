@@ -12,6 +12,7 @@ import RdvDetailModal from '@/components/agenda/RdvDetailModal';
 import type { RendezVous } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
 import { RowActions } from '@/components/ui/row-actions';
+import { fetchRdvs } from '@/services/rdv.service';
 
 // --- Types ---
 
@@ -179,22 +180,16 @@ export default function DashboardPage() {
     setRdvsLoading(true);
     setRdvsError(null);
     try {
-      const supabase = createClientBrowser();
       const todayStart = startOfDay(new Date());
       const todayEnd = endOfDay(new Date());
 
-      let query = supabase
-        .from('rendez_vous')
-        .select('*, patients(id, nom, prenom, telephone)')
-        .gte('date_heure', todayStart)
-        .lte('date_heure', todayEnd)
-        .order('date_heure', { ascending: true });
+      const result = await fetchRdvs(
+        { date_debut: todayStart.toISOString(), date_fin: todayEnd.toISOString() },
+        undefined,
+        { limit: 200 }
+      );
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      const mapped: DashboardRdv[] = (data || []).map((r: any) => ({
+      const mapped: DashboardRdv[] = (result.data || []).map((r: any) => ({
         id: r.id,
         date_heure: r.date_heure,
         duree: r.duree ?? 30,

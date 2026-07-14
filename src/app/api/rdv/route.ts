@@ -16,6 +16,10 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
+    const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '200', 10) || 200));
+    const offset = (page - 1) * limit;
+
     const params = {
       date_debut: url.searchParams.get('date_debut') ?? '',
       date_fin: url.searchParams.get('date_fin') ?? '',
@@ -35,7 +39,7 @@ export async function GET(request: Request) {
 
     let builder = supabase
       .from('rendez_vous')
-      .select('*, patients(id, nom, prenom, telephone), dentistes(id, nom, prenom)')
+      .select('*, patients(id, nom, prenom, telephone), dentistes(id, nom, prenom)', { count: 'exact' })
       .gte('date_heure', query.date_debut)
       .lte('date_heure', query.date_fin)
       .order('date_heure', { ascending: true });
@@ -49,7 +53,7 @@ export async function GET(request: Request) {
       builder = builder.in('statut', statuts);
     }
 
-    const { data, error } = await builder;
+    const { data, count, error } = await builder.range(offset, offset + limit - 1);
 
     if (error) {
       console.error('[API_ERROR] GET /api/rdv:', error);
@@ -58,6 +62,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       data: (data || []).map(rdvDbToApi),
+      meta: {
+        total: count || 0,
+        page,
+        limit,
+        totalPages: count ? Math.ceil(count / limit) : 0,
+      },
     });
   } catch (error) {
     console.error('[API_ERROR] GET /api/rdv:', error);
