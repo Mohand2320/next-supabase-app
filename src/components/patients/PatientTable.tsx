@@ -2,6 +2,7 @@
 
 import { Loader2, Mail, Phone, Eye, Edit2, Trash2, Users } from 'lucide-react';
 import type { Patient } from '@/types/patient';
+import { RowActions } from '@/components/ui/row-actions';
 
 interface PatientTableProps {
   patients: Patient[];
@@ -98,22 +99,13 @@ export function PatientTable({
                 <td className="px-6 py-4 text-sm text-slate-600">{patient.email || '—'}</td>
                 <td className="px-6 py-4 text-sm text-slate-600">{formatDate(patient.created_at)}</td>
                 <td className="px-6 py-4 text-right">
-                  <div className="inline-flex items-center gap-1">
-                    <button onClick={() => onView(patient.id)} className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600" aria-label="Voir">
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => onEdit(patient.id)} className="rounded-lg p-2 text-slate-500 transition hover:bg-amber-50 hover:text-amber-600" aria-label="Modifier">
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(patient.id)}
-                      disabled={deletingId === patient.id}
-                      className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="Supprimer"
-                    >
-                      {deletingId === patient.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                    </button>
-                  </div>
+                  <RowActions
+                    actions={[
+                      { icon: Eye, label: 'Voir le patient', onClick: () => onView(patient.id) },
+                      { icon: Edit2, label: 'Modifier le patient', onClick: () => onEdit(patient.id) },
+                      { icon: Trash2, label: 'Supprimer le patient', onClick: () => onDelete(patient.id), variant: 'destructive', loading: deletingId === patient.id },
+                    ]}
+                  />
                 </td>
               </tr>
             ))}
@@ -152,29 +144,14 @@ export function PatientTable({
               Créé le {formatDate(patient.created_at)}
             </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-2">
-              <button
-                onClick={() => onView(patient.id)}
-                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-              >
-                <Eye className="h-4 w-4" />
-                Voir
-              </button>
-              <button
-                onClick={() => onEdit(patient.id)}
-                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-50 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-              >
-                <Edit2 className="h-4 w-4" />
-                Modif.
-              </button>
-              <button
-                onClick={() => onDelete(patient.id)}
-                disabled={deletingId === patient.id}
-                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-rose-50 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingId === patient.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Suppr.
-              </button>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <RowActions
+                actions={[
+                  { icon: Eye, label: 'Voir le patient', onClick: () => onView(patient.id) },
+                  { icon: Edit2, label: 'Modifier le patient', onClick: () => onEdit(patient.id) },
+                  { icon: Trash2, label: 'Supprimer le patient', onClick: () => onDelete(patient.id), variant: 'destructive', loading: deletingId === patient.id },
+                ]}
+              />
             </div>
           </article>
         ))}
