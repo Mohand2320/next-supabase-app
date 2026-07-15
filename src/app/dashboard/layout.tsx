@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import {
-  LayoutDashboard, Users, Calendar, CalendarCheck, Wallet, Settings, Stethoscope,
+  LayoutDashboard, Users, Calendar, CalendarCheck, Wallet, Stethoscope,
   Menu, X, User, Shield
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -43,7 +44,6 @@ const NAV_ITEMS: { href: string; icon: any; label: string; adminOnly?: boolean }
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/rendez-vous', icon: CalendarCheck, label: 'Rendez-vous' },
   { href: '/dashboard/finances', icon: Wallet, label: 'Finances' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           const Icon = item.icon;
           const active = isActive(item.href);
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               onClick={() => setSidebarOpen(false)}
@@ -107,21 +107,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <Icon className="w-5 h-5" />
               <span className="text-sm">{item.label}</span>
-            </a>
+            </Link>
           );
         })}
       </nav>
 
       {/* User */}
       <div className="p-4 border-t border-slate-100">
-        <a href="/dashboard/settings" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+        <Link href="/dashboard/profile" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-blue-100 shadow-sm">
             <User className="h-5 w-5 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
             <UserProfileDisplay userData={userData} />
           </div>
-        </a>
+        </Link>
       </div>
     </>
   );
