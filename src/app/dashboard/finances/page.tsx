@@ -52,7 +52,7 @@ export default function FinancesPage() {
         pattern: 'solid',
         fgColor: { argb: 'FFF3F4F6' } // slate-100
       };
-      const headerFont: ExcelJS.Font = { bold: true };
+      const headerFont: Partial<ExcelJS.Font> = { bold: true };
       const numberFormat = '#,##0.00 "DA"';
 
       // --- Feuille 1: Répartition par catégorie ---
