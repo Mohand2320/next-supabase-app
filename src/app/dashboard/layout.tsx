@@ -37,14 +37,12 @@ function UserProfileDisplay({ userData }: { userData: any }) {
   );
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { href: string; icon: any; label: string; adminOnly?: boolean }[] = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/patients', icon: Users, label: 'Patients' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/rendez-vous', icon: CalendarCheck, label: 'Rendez-vous' },
   { href: '/dashboard/finances', icon: Wallet, label: 'Finances' },
-  { href: '/dashboard/utilisateurs', icon: Shield, label: 'Utilisateurs', adminOnly: true },
-  { href: '/dashboard/profile', icon: User, label: 'Mon Profil' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -116,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* User */}
       <div className="p-4 border-t border-slate-100">
-        <a href="/dashboard/profile" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+        <a href="/dashboard/settings" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-blue-100 shadow-sm">
             <User className="h-5 w-5 text-blue-600" />
           </div>
