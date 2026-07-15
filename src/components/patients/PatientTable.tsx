@@ -38,7 +38,7 @@ export function PatientTable({
 }: PatientTableProps) {
   if (loading) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-3 text-slate-600">
           <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
           <span>Chargement des patients...</span>
@@ -49,7 +49,7 @@ export function PatientTable({
 
   if (patients.length === 0) {
     return (
-      <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center shadow-sm">
+      <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-300 bg-white px-6 text-center shadow-sm">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
           <Users className="h-8 w-8" />
         </div>
@@ -73,18 +73,18 @@ export function PatientTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="hidden overflow-x-auto lg:block">
         <table className="min-w-full divide-y divide-slate-100 text-left">
           <thead className="bg-slate-50">
             <tr>
-              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Patient</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Sexe</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date de naissance</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Téléphone</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Email</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date de création</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+              <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Patient</th>
+              <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Sexe</th>
+              <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Date de naissance</th>
+              <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Téléphone</th>
+              <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Email</th>
+              <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Date de création</th>
+              <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -115,7 +115,7 @@ export function PatientTable({
 
       <div className="grid grid-cols-1 gap-4 p-4 lg:hidden">
         {patients.map((patient) => (
-          <article key={patient.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <article key={patient.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
             <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                 <Users className="h-6 w-6" />

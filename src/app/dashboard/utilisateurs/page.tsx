@@ -131,13 +131,13 @@ export default function UtilisateursPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4 font-semibold">Utilisateur</th>
-                    <th className="px-6 py-4 font-semibold">Rôle</th>
-                    <th className="px-6 py-4 font-semibold">Statut</th>
-                    <th className="px-6 py-4 font-semibold">Date d'inscription</th>
-                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Utilisateur</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Rôle</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Statut</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Date d'inscription</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

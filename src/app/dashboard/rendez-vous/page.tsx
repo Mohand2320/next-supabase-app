@@ -347,11 +347,11 @@ export default function RendezVousPage() {
                 <table className="w-full text-left">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date & Heure</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Patient</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Motif</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Statut</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Date & Heure</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Patient</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Motif</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Statut</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">

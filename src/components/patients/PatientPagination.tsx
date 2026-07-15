@@ -11,7 +11,7 @@ interface PatientPaginationProps {
 export function PatientPagination({ meta, onPageChange }: PatientPaginationProps) {
   if (meta.totalPages <= 1) {
     return (
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
         <span>
           {meta.total} résultat{meta.total > 1 ? 's' : ''}
         </span>
@@ -24,7 +24,7 @@ export function PatientPagination({ meta, onPageChange }: PatientPaginationProps
   const end = Math.min(meta.page * meta.limit, meta.total);
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="text-sm text-slate-500">
         Affichage de <span className="font-semibold text-slate-900">{start}</span> à <span className="font-semibold text-slate-900">{end}</span> sur <span className="font-semibold text-slate-900">{meta.total}</span> patients
       </div>

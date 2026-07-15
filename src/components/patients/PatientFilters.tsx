@@ -124,7 +124,7 @@ export function PatientFilters({
         </button>
       </div>
 
-      <section className="hidden md:block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="hidden md:block rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold text-slate-900">Filtres et tri</h3>
