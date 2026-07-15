@@ -44,6 +44,7 @@ const NAV_ITEMS: { href: string; icon: any; label: string; adminOnly?: boolean }
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/rendez-vous', icon: CalendarCheck, label: 'Rendez-vous' },
   { href: '/dashboard/finances', icon: Wallet, label: 'Finances' },
+  { href: '/dashboard/utilisateurs', icon: Shield, label: 'Utilisateurs', adminOnly: true },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
