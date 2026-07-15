@@ -7,18 +7,25 @@ import type {
   RdvConvertPatientPayload,
   RdvCalendarFilters,
 } from '@/types/rdv';
+import type { PaginationMeta } from '@/hooks/use-paginated-list';
 
 // ============================================================
 // Service Client — Module Agenda (Rendez-vous)
 // ============================================================
+
+export interface RdvListResponse {
+  data: RendezVous[];
+  meta: PaginationMeta;
+}
 
 /**
  * Récupère les RDV pour une plage de dates (vue calendrier).
  */
 export async function fetchRdvs(
   filters: RdvCalendarFilters,
-  signal?: AbortSignal
-): Promise<{ data: RendezVous[] }> {
+  signal?: AbortSignal,
+  pagination?: { page?: number; limit?: number }
+): Promise<RdvListResponse> {
   const params = new URLSearchParams();
   params.set('date_debut', filters.date_debut);
   params.set('date_fin', filters.date_fin);
@@ -26,6 +33,10 @@ export async function fetchRdvs(
   if (filters.statut && filters.statut.length > 0) {
     params.set('statut', filters.statut.join(','));
   }
+  if (filters.search) params.set('search', filters.search);
+  if (filters.sort) params.set('sort', filters.sort);
+  if (pagination?.page) params.set('page', String(pagination.page));
+  if (pagination?.limit) params.set('limit', String(pagination.limit));
 
   const response = await fetch(`/api/rdv?${params.toString()}`, { signal });
   const payload = await response.json().catch(() => null);

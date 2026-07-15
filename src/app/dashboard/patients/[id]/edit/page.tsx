@@ -77,7 +77,7 @@ export default function EditPatientPage() {
               <div><label className={labelClass}>Date de naissance</label><input name="date_of_birth" type="date" value={form.date_of_birth || ''} onChange={handleChange} className={inputClass} /></div>
               <div><label className={labelClass}>Sexe</label>
                 <select name="gender" value={form.gender || ''} onChange={handleChange} className={inputClass}>
-                  <option value="">— Sélectionner —</option><option value="M">Homme</option><option value="F">Femme</option><option value="Other">Autre</option>
+                  <option value="">— Sélectionner —</option><option value="M">Homme</option><option value="F">Femme</option>
                 </select>
               </div>
             </div>

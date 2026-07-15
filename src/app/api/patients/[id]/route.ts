@@ -37,7 +37,7 @@ export async function GET(
     const patient = dbToApi(patientRaw);
     if (profile) {
       patient.allergies = profile.allergies || [];
-      patient.medical_history = profile.antecedents || [];
+      patient.medical_history = (profile.antecedents || []).join(', ');
       patient.diabete = profile.diabete;
     }
 

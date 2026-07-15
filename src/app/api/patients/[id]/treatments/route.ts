@@ -18,16 +18,30 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const url = new URL(request.url);
+    const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10) || 20));
+    const offset = (page - 1) * limit;
+
     // Récupérer l'historique via la vue agrégée
-    const { data: treatments, error } = await supabase
+    const { data: treatments, count, error } = await supabase
       .from('v_historique_seances')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('patient_id', id)
-      .order('date', { ascending: false });
+      .order('date', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    return NextResponse.json(treatments);
+    return NextResponse.json({
+      data: treatments || [],
+      meta: {
+        total: count || 0,
+        page,
+        limit,
+        totalPages: count ? Math.ceil(count / limit) : 0,
+      },
+    });
   } catch (error: any) {
     console.error('[API_ERROR] GET /api/patients/[id]/treatments:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -11,6 +11,8 @@ import { createClientBrowser } from '@/lib/supabase/client';
 import RdvDetailModal from '@/components/agenda/RdvDetailModal';
 import type { RendezVous } from '@/types/rdv';
 import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
+import { RowActions } from '@/components/ui/row-actions';
+import { fetchRdvs as fetchRdvsApi } from '@/services/rdv.service';
 
 // --- Types ---
 
@@ -178,22 +180,16 @@ export default function DashboardPage() {
     setRdvsLoading(true);
     setRdvsError(null);
     try {
-      const supabase = createClientBrowser();
       const todayStart = startOfDay(new Date());
       const todayEnd = endOfDay(new Date());
 
-      let query = supabase
-        .from('rendez_vous')
-        .select('*, patients(id, nom, prenom, telephone)')
-        .gte('date_heure', todayStart)
-        .lte('date_heure', todayEnd)
-        .order('date_heure', { ascending: true });
+      const result = await fetchRdvsApi(
+        { date_debut: todayStart, date_fin: todayEnd },
+        undefined,
+        { limit: 200 }
+      );
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      const mapped: DashboardRdv[] = (data || []).map((r: any) => ({
+      const mapped: DashboardRdv[] = (result.data || []).map((r: any) => ({
         id: r.id,
         date_heure: r.date_heure,
         duree: r.duree ?? 30,
@@ -351,12 +347,11 @@ export default function DashboardPage() {
                       <span className="text-sm font-bold text-slate-900">{formatHeure(apt.date_heure)}</span>
                       <div className="flex items-center gap-2">
                         <StatusBadge statut={apt.statut} />
-                        <button
-                          onClick={() => { setDetailRdv(apt); setDetailModalOpen(true); }}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <RowActions
+                          actions={[
+                            { icon: Eye, label: 'Voir le rendez-vous', onClick: () => { setDetailRdv(apt); setDetailModalOpen(true); } },
+                          ]}
+                        />
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -407,12 +402,11 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 text-sm text-slate-500">{apt.motif || '—'}</td>
                         <td className="px-6 py-4"><StatusBadge statut={apt.statut} /></td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => { setDetailRdv(apt); setDetailModalOpen(true); }}
-                            className="inline-flex items-center gap-1 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          <RowActions
+                            actions={[
+                              { icon: Eye, label: 'Voir le rendez-vous', onClick: () => { setDetailRdv(apt); setDetailModalOpen(true); } },
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))}

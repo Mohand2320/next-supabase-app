@@ -35,22 +35,22 @@ export function ProfileSettings() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-sm">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700">
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-900/20 p-6 text-center text-rose-700 dark:text-rose-400">
         <AlertCircle className="mx-auto mb-2 h-8 w-8" />
         <h3 className="text-lg font-semibold">Impossible de charger le profil</h3>
-        <p className="mt-1 text-sm text-rose-600">{errorMsg || "Erreur inconnue"}</p>
+        <p className="mt-1 text-sm text-rose-600 dark:text-rose-500">{errorMsg || "Erreur inconnue"}</p>
         <button
             type="button"
             onClick={handleLogout}
-            className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white px-6 py-2.5 font-semibold transition hover:bg-rose-700"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white px-6 py-2.5 font-semibold transition hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800"
           >
             <LogOut className="h-5 w-5" />
             Se déconnecter
@@ -60,24 +60,24 @@ export function ProfileSettings() {
   }
 
   const roleLabel = data.role === 'dentiste' ? 'Chirurgien-dentiste' : 'Assistant(e)';
-  const adminBadge = data.profile.is_admin ? <span className="ml-2 inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">Administrateur</span> : null;
+  const adminBadge = data.profile.is_admin ? <span className="ml-2 inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-400/20">Administrateur</span> : null;
   const nom = data.data?.nom || '';
   const prenom = data.data?.prenom || '';
   const initiales = (prenom.charAt(0) + nom.charAt(0)).toUpperCase() || '?';
   const specialite = data.role === 'dentiste' ? (data.data as any)?.specialite : null;
   const login = data.role === 'assistant' ? (data.data as any)?.login : null;
-  const fallback = <span className="text-slate-400 italic">Non renseigné</span>;
+  const fallback = <span className="text-slate-400 dark:text-slate-500 italic">Non renseigné</span>;
 
   return (
-    <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 bg-slate-50 px-6 py-6 sm:px-8">
+    <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-sm">
+      <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-6 py-6 sm:px-8">
         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-2xl font-bold shadow-md shadow-blue-200">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-blue-600 dark:bg-blue-900/50 text-white dark:text-blue-400 text-2xl font-bold shadow-md shadow-blue-200 dark:shadow-none border dark:border-blue-800">
             {initiales}
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">{prenom || prenom} {nom || 'Utilisateur'}</h2>
-            <p className="text-sm font-medium text-blue-600 mt-1 flex items-center">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{prenom || prenom} {nom || 'Utilisateur'}</h2>
+            <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mt-1 flex items-center">
               {roleLabel}
               {adminBadge}
             </p>
@@ -88,44 +88,44 @@ export function ProfileSettings() {
       <div className="p-6 sm:p-8">
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-500">Nom</label>
-            <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
+            <label className="block text-sm font-semibold text-slate-500 dark:text-slate-400">Nom</label>
+            <div className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 font-medium break-all">
               {nom || fallback}
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-500">Prénom</label>
-            <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
+            <label className="block text-sm font-semibold text-slate-500 dark:text-slate-400">Prénom</label>
+            <div className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 font-medium break-all">
               {prenom || fallback}
             </div>
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <label className="block text-sm font-semibold text-slate-500">Nom complet</label>
-            <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
+            <label className="block text-sm font-semibold text-slate-500 dark:text-slate-400">Nom complet</label>
+            <div className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 font-medium break-all">
               {(prenom || nom) ? `${prenom} ${nom}`.trim() : fallback}
             </div>
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <label className="block text-sm font-semibold text-slate-500">Adresse email</label>
-            <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
+            <label className="block text-sm font-semibold text-slate-500 dark:text-slate-400">Adresse email</label>
+            <div className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 font-medium break-all">
               {data.email || fallback}
             </div>
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <label className="block text-sm font-semibold text-slate-500">Rôle utilisateur</label>
-            <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium">
+            <label className="block text-sm font-semibold text-slate-500 dark:text-slate-400">Rôle utilisateur</label>
+            <div className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 font-medium">
               {roleLabel}
             </div>
           </div>
 
           {data.role === 'dentiste' && (
             <div className="space-y-2 sm:col-span-2">
-              <label className="block text-sm font-semibold text-slate-500">Spécialité</label>
-              <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
+              <label className="block text-sm font-semibold text-slate-500 dark:text-slate-400">Spécialité</label>
+              <div className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 font-medium break-all">
                 {specialite || fallback}
               </div>
             </div>
@@ -133,19 +133,19 @@ export function ProfileSettings() {
 
           {data.role === 'assistant' && (
             <div className="space-y-2 sm:col-span-2">
-              <label className="block text-sm font-semibold text-slate-500">Identifiant de connexion (Login)</label>
-              <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-slate-900 border border-slate-100 font-medium break-all">
+              <label className="block text-sm font-semibold text-slate-500 dark:text-slate-400">Identifiant de connexion (Login)</label>
+              <div className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 font-medium break-all">
                 {login || fallback}
               </div>
             </div>
           )}
         </div>
 
-        <div className="mt-10 flex items-center justify-end border-t border-slate-100 pt-8">
+        <div className="mt-10 flex items-center justify-end border-t border-slate-100 dark:border-slate-800 pt-8">
           <button
             type="button"
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-50 text-rose-600 px-6 py-3 font-semibold transition hover:bg-rose-100 hover:text-rose-700 sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 px-6 py-3 font-semibold transition hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 dark:hover:text-rose-300 sm:w-auto"
           >
             <LogOut className="h-5 w-5" />
             Se déconnecter

@@ -162,6 +162,8 @@ export interface RdvCalendarFilters {
   date_fin: string;    // ISO date
   dentiste_id?: string;
   statut?: StatutRDV[];
+  search?: string;
+  sort?: 'date_asc' | 'date_desc';
 }
 
 // --- Helpers date pour calendrier ---

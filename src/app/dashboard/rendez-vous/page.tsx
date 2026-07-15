@@ -1,31 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { CalendarCheck, PlusCircle, Search, X, Loader2, ChevronLeft, ChevronRight, ArrowUpDown, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
-import Link from 'next/link';
-import { createClientBrowser } from '@/lib/supabase/client';
 import RdvCreateModal from '@/components/agenda/RdvCreateModal';
 import RdvDrawer from '@/components/agenda/RdvDrawer';
 import RdvCancelModal from '@/components/agenda/RdvCancelModal';
-import { createRdv, fetchRdv, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
+import { createRdv, fetchRdv, fetchRdvs as fetchRdvsApi, updateRdvStatus, deleteRdv } from '@/services/rdv.service';
 import type { RendezVous, RdvCreatePayload, OrigineAnnulation } from '@/types/rdv';
-import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate } from '@/types/rdv';
-
-// --- Types ---
-
-interface RdvRow {
-  id: string;
-  date_heure: string;
-  duree: number;
-  statut: RendezVous['statut'];
-  motif: string | null;
-  patient_nom: string | null;
-  patient_prenom: string | null;
-  nom_minimal: string | null;
-  prenom_minimal: string | null;
-  patient_id: string | null;
-}
+import { STATUT_LABELS, STATUT_COLORS, formatHeure, formatDate, getDisplayName } from '@/types/rdv';
+import { RowActions } from '@/components/ui/row-actions';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 
 type SortOption = 'date_asc' | 'date_desc';
 
@@ -36,16 +21,6 @@ const STATUT_FILTERS: { value: RendezVous['statut'] | 'ALL'; label: string }[] =
   { value: 'TERMINE', label: 'Terminé' },
   { value: 'ANNULE', label: 'Annulé' },
 ];
-
-// --- Helpers ---
-
-function getPatientDisplayName(rdv: RdvRow): string {
-  if (rdv.patient_nom && rdv.patient_prenom) return `${rdv.patient_prenom} ${rdv.patient_nom}`;
-  if (rdv.prenom_minimal && rdv.nom_minimal) return `${rdv.prenom_minimal} ${rdv.nom_minimal}`;
-  return rdv.nom_minimal || 'Patient inconnu';
-}
-
-const ITEMS_PER_PAGE = 20;
 
 // --- Status badge ---
 
@@ -63,19 +38,12 @@ function StatusBadge({ statut }: { statut: RendezVous['statut'] }) {
 // ============================================================
 
 export default function RendezVousPage() {
-  const [rdvs, setRdvs] = useState<RdvRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // Filtres
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<RendezVous['statut'] | 'ALL'>('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sort, setSort] = useState<SortOption>('date_desc');
-
-  // Pagination
-  const [page, setPage] = useState(1);
 
   // Modal création
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -89,91 +57,51 @@ export default function RendezVousPage() {
   const [cancelRdvId, setCancelRdvId] = useState<string | null>(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
-  // --- Fetch ---
-  const fetchRdvs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const supabase = createClientBrowser();
-      const { data, error: err } = await supabase
-        .from('rendez_vous')
-        .select('*, patients(id, nom, prenom, telephone)')
-        .order('date_heure', { ascending: false })
-        .limit(500);
+  // Build API params from filters
+  const apiParams = React.useMemo(() => {
+    const end = dateTo ? new Date(dateTo + 'T23:59:59') : new Date();
+    const start = dateFrom ? new Date(dateFrom + 'T00:00:00') : new Date();
+    if (!dateFrom) start.setFullYear(start.getFullYear() - 1);
 
-      if (err) throw err;
+    const p: Record<string, string> = {
+      date_debut: start.toISOString(),
+      date_fin: end.toISOString(),
+      sort,
+    };
+    if (statusFilter !== 'ALL') p.statut = statusFilter;
+    if (searchFilter.trim()) p.search = searchFilter.trim();
+    return p;
+  }, [searchFilter, statusFilter, dateFrom, dateTo, sort]);
 
-      const mapped: RdvRow[] = (data || []).map((r: any) => ({
-        id: r.id,
-        date_heure: r.date_heure,
-        duree: r.duree ?? 30,
-        statut: r.statut,
-        motif: r.motif,
-        patient_nom: r.patients?.nom ?? null,
-        patient_prenom: r.patients?.prenom ?? null,
-        nom_minimal: r.nom_minimal,
-        prenom_minimal: r.prenom_minimal,
-        patient_id: r.patient_id,
-      }));
+  // --- Paginated list via API ---
+  const {
+    data: rdvs,
+    isLoading,
+    error,
+    totalCount,
+    currentPage,
+    totalPages,
+    setPage,
+    nextPage,
+    prevPage,
+    reload,
+  } = usePaginatedList<RendezVous>('/api/rdv', apiParams, {
+    defaultLimit: 20,
+    deps: [apiParams],
+  });
 
-      setRdvs(mapped);
-    } catch (err: any) {
-      console.error('[RendezVousPage]', err);
-      setError(err.message || 'Erreur lors du chargement');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchRdvs(); }, [fetchRdvs]);
-
-  // --- Filtrage client ---
-  const filteredRdvs = useMemo(() => {
-    let result = rdvs;
-
-    if (statusFilter !== 'ALL') {
-      result = result.filter((r) => r.statut === statusFilter);
-    }
-
-    if (dateFrom) {
-      result = result.filter((r) => r.date_heure.slice(0, 10) >= dateFrom);
-    }
-    if (dateTo) {
-      result = result.filter((r) => r.date_heure.slice(0, 10) <= dateTo);
-    }
-
-    if (searchFilter.trim()) {
-      const q = searchFilter.trim().toLowerCase();
-      result = result.filter((r) => getPatientDisplayName(r).toLowerCase().includes(q));
-    }
-
-    result.sort((a, b) => {
-      const cmp = a.date_heure.localeCompare(b.date_heure);
-      return sort === 'date_asc' ? cmp : -cmp;
-    });
-
-    return result;
-  }, [rdvs, statusFilter, dateFrom, dateTo, searchFilter, sort]);
-
-  // --- Pagination ---
-  const totalPages = Math.max(1, Math.ceil(filteredRdvs.length / ITEMS_PER_PAGE));
-  const paginatedRdvs = useMemo(
-    () => filteredRdvs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE),
-    [filteredRdvs, page]
-  );
-
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [searchFilter, statusFilter, dateFrom, dateTo, sort]);
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1); }, [apiParams]);
 
   // --- Création RDV ---
   const handleCreateRdv = useCallback(async (payload: RdvCreatePayload) => {
     await createRdv(payload);
     setCreateModalOpen(false);
-    await fetchRdvs();
-  }, [fetchRdvs]);
+    reload();
+  }, [reload]);
 
   // --- Drawer handlers ---
-  const openDrawer = useCallback(async (apt: RdvRow) => {
+  const openDrawer = useCallback(async (apt: RendezVous) => {
     setDrawerLoading(true);
     setDrawerOpen(true);
     try {
@@ -194,14 +122,14 @@ export default function RendezVousPage() {
   const handleConfirmer = useCallback(async (rdvId: string) => {
     await updateRdvStatus(rdvId, { nouveau_statut: 'CONFIRME' });
     closeDrawer();
-    await fetchRdvs();
-  }, [closeDrawer, fetchRdvs]);
+    reload();
+  }, [closeDrawer, reload]);
 
   const handleTerminer = useCallback(async (rdvId: string) => {
     await updateRdvStatus(rdvId, { nouveau_statut: 'TERMINE' });
     closeDrawer();
-    await fetchRdvs();
-  }, [closeDrawer, fetchRdvs]);
+    reload();
+  }, [closeDrawer, reload]);
 
   const openCancelModal = useCallback(() => {
     setCancelModalOpen(true);
@@ -213,14 +141,14 @@ export default function RendezVousPage() {
     setCancelModalOpen(false);
     setCancelRdvId(null);
     closeDrawer();
-    await fetchRdvs();
-  }, [cancelRdvId, closeDrawer, fetchRdvs]);
+    reload();
+  }, [cancelRdvId, closeDrawer, reload]);
 
   const handleDelete = useCallback(async (rdvId: string) => {
     await deleteRdv(rdvId);
     closeDrawer();
-    await fetchRdvs();
-  }, [closeDrawer, fetchRdvs]);
+    reload();
+  }, [closeDrawer, reload]);
 
   // --- Computed ---
   const hasActiveFilters = statusFilter !== 'ALL' || dateFrom !== '' || dateTo !== '' || sort !== 'date_desc' || searchFilter.trim() !== '';
@@ -348,13 +276,13 @@ export default function RendezVousPage() {
           <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-base sm:text-lg font-bold text-slate-900">
               Tous les rendez-vous
-              {!loading && (
-                <span className="text-sm font-normal text-slate-500 ml-2">({filteredRdvs.length})</span>
+              {!isLoading && (
+                <span className="text-sm font-normal text-slate-500 ml-2">({totalCount})</span>
               )}
             </h3>
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
               <span className="ml-3 text-sm text-slate-500">Chargement des rendez-vous...</span>
@@ -362,11 +290,11 @@ export default function RendezVousPage() {
           ) : error ? (
             <div className="p-6 text-center">
               <p className="text-sm text-red-600 font-medium">{error}</p>
-              <button onClick={fetchRdvs} className="mt-3 text-sm text-blue-600 hover:underline">
+              <button onClick={reload} className="mt-3 text-sm text-blue-600 hover:underline">
                 Réessayer
               </button>
             </div>
-          ) : filteredRdvs.length === 0 ? (
+          ) : rdvs.length === 0 ? (
             <div className="p-6 text-center">
               <div className="flex justify-center mb-4">
                 <CalendarCheck className="w-12 h-12 text-slate-300" />
@@ -385,18 +313,17 @@ export default function RendezVousPage() {
             <>
               {/* Mobile cards */}
               <div className="block sm:hidden divide-y divide-slate-100">
-                {paginatedRdvs.map((apt) => (
+                {rdvs.map((apt) => (
                   <div key={apt.id} className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-900">{formatHeure(apt.date_heure)}</span>
                       <div className="flex items-center gap-2">
                         <StatusBadge statut={apt.statut} />
-                        <button
-                          onClick={() => openDrawer(apt)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <RowActions
+                          actions={[
+                            { icon: Eye, label: 'Voir le rendez-vous', onClick: () => openDrawer(apt) },
+                          ]}
+                        />
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -404,10 +331,10 @@ export default function RendezVousPage() {
                     </div>
                     <div className="flex items-center gap-3 pt-1">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 text-xs font-bold">
-                        {(getPatientDisplayName(apt).charAt(0) || '?')}
+                        {(getDisplayName(apt).charAt(0) || '?')}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-700">{getPatientDisplayName(apt)}</p>
+                        <p className="text-sm font-medium text-slate-700">{getDisplayName(apt)}</p>
                         <p className="text-xs text-slate-500">{apt.motif || '—'}</p>
                       </div>
                     </div>
@@ -420,15 +347,15 @@ export default function RendezVousPage() {
                 <table className="w-full text-left">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date & Heure</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Patient</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Motif</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Statut</th>
-                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Date & Heure</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Patient</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Motif</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500">Statut</th>
+                      <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {paginatedRdvs.map((apt) => (
+                    {rdvs.map((apt) => (
                       <tr key={apt.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {formatHeure(apt.date_heure)}
@@ -437,10 +364,10 @@ export default function RendezVousPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 text-xs font-bold">
-                              {(getPatientDisplayName(apt).charAt(0) || '?')}
+                              {(getDisplayName(apt).charAt(0) || '?')}
                             </div>
                             <div>
-                              <span className="text-sm font-medium text-slate-700">{getPatientDisplayName(apt)}</span>
+                              <span className="text-sm font-medium text-slate-700">{getDisplayName(apt)}</span>
                               {!apt.patient_id && (
                                 <span className="block text-[10px] text-amber-600 font-medium">Nouveau</span>
                               )}
@@ -450,12 +377,11 @@ export default function RendezVousPage() {
                         <td className="px-6 py-4 text-sm text-slate-500">{apt.motif || '—'}</td>
                         <td className="px-6 py-4"><StatusBadge statut={apt.statut} /></td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => openDrawer(apt)}
-                            className="inline-flex items-center gap-1 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          <RowActions
+                            actions={[
+                              { icon: Eye, label: 'Voir le rendez-vous', onClick: () => openDrawer(apt) },
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -468,12 +394,12 @@ export default function RendezVousPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="text-sm text-slate-500">
                     {totalPages <= 1 ? (
-                      <span>{filteredRdvs.length} résultat{filteredRdvs.length > 1 ? 's' : ''}</span>
+                      <span>{totalCount} résultat{totalCount > 1 ? 's' : ''}</span>
                     ) : (
                       <span>
-                        Affichage de <span className="font-semibold text-slate-900">{(page - 1) * ITEMS_PER_PAGE + 1}</span> à{' '}
-                        <span className="font-semibold text-slate-900">{Math.min(page * ITEMS_PER_PAGE, filteredRdvs.length)}</span> sur{' '}
-                        <span className="font-semibold text-slate-900">{filteredRdvs.length}</span> rendez-vous
+                        Affichage de <span className="font-semibold text-slate-900">{(currentPage - 1) * 20 + 1}</span> à{' '}
+                        <span className="font-semibold text-slate-900">{Math.min(currentPage * 20, totalCount)}</span> sur{' '}
+                        <span className="font-semibold text-slate-900">{totalCount}</span> rendez-vous
                       </span>
                     )}
                   </div>
@@ -481,19 +407,19 @@ export default function RendezVousPage() {
                   {totalPages > 1 && (
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page <= 1}
+                        onClick={prevPage}
+                        disabled={currentPage <= 1}
                         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <ChevronLeft className="w-4 h-4" />
                         Précédent
                       </button>
                       <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-                        Page {page} / {totalPages}
+                        Page {currentPage} / {totalPages}
                       </div>
                       <button
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page >= totalPages}
+                        onClick={nextPage}
+                        disabled={currentPage >= totalPages}
                         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Suivant
