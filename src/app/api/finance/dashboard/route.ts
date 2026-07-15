@@ -97,13 +97,14 @@ export async function GET(request: Request) {
 
     if (catError) throw catError;
 
-    const categoriesMap = new Map();
+    const categoriesMap = new Map<string, number>();
+    const ALL_CATEGORIES = ['CONSERVATEUR', 'ENDODONTIE', 'PROTHESE', 'PARODONTOLOGIE', 'CHIRURGIE', 'ESTHETIQUE', 'CONSULTATION', 'AUTRE'];
+    ALL_CATEGORIES.forEach(cat => categoriesMap.set(cat, 0));
+
     if (categoryData) {
       for (const s of categoryData) {
         const actes = Array.isArray(s.seance_actes) ? s.seance_actes : [];
         for (const sa of actes) {
-          // sa.actes_medicaux could be an array if it's a many-to-many, but it's a one-to-many here, though Supabase might return it as object or array.
-          // In seance_actes, acte_id refers to actes_medicaux. It should be a single object.
           const acteMed = Array.isArray(sa.actes_medicaux) ? sa.actes_medicaux[0] : sa.actes_medicaux;
           const cat = acteMed?.categorie || 'AUTRE';
           const ca = Number(sa.prix_applique || 0) * Number(sa.quantite || 1);
@@ -112,7 +113,11 @@ export async function GET(request: Request) {
       }
     }
     
+    // Calculate total for percentage later
+    const totalCategories = Array.from(categoriesMap.values()).reduce((sum, val) => sum + val, 0);
+
     const repartition = Array.from(categoriesMap.entries()).map(([name, value]) => ({
+
       name,
       value
     })).sort((a, b) => b.value - a.value);

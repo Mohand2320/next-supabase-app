@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, Activity, FileSpreadsheet, AlertCircle, Loader2 } from 'lucide-react';
 import { formatMontant } from '@/components/seance-form/types';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 interface FinanceData {
   recettesMois: number;
@@ -36,35 +38,82 @@ export default function FinancesPage() {
     fetchFinances();
   }, []);
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!data) return;
     
-    // Header
-    const lines = [
-      ['Catégorie', 'Montant généré (DA)']
-    ];
-    
-    // Data
-    data.repartition.forEach(item => {
-      lines.push([item.name, item.value.toString()]);
-    });
-    
-    lines.push([]);
-    lines.push(['Mois', 'Total (DA)']);
-    data.trend.forEach(item => {
-      lines.push([item.name, item.total.toString()]);
-    });
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'DentiPro';
+      workbook.created = new Date();
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
-        + lines.map(e => e.join(",")).join("\n");
+      // Style constants
+      const headerFill: ExcelJS.Fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF3F4F6' } // slate-100
+      };
+      const headerFont: ExcelJS.Font = { bold: true };
+      const numberFormat = '#,##0.00 "DA"';
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `rapport_financier_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // --- Feuille 1: Répartition par catégorie ---
+      const sheet1 = workbook.addWorksheet('Répartition par catégorie');
+      sheet1.columns = [
+        { header: 'Catégorie', key: 'categorie', width: 30 },
+        { header: 'Montant généré (DA)', key: 'montant', width: 25, style: { numFmt: numberFormat } },
+        { header: 'Part (%)', key: 'part', width: 15, style: { numFmt: '0.00%' } }
+      ];
+
+      // Style header
+      sheet1.getRow(1).font = headerFont;
+      sheet1.getRow(1).fill = headerFill;
+
+      // Add data
+      const totalRepart = data.repartition.reduce((sum, item) => sum + item.value, 0);
+      data.repartition.forEach(item => {
+        sheet1.addRow({
+          categorie: item.name,
+          montant: item.value,
+          part: totalRepart > 0 ? item.value / totalRepart : 0
+        });
+      });
+
+      // --- Feuille 2: Évolution mensuelle ---
+      const sheet2 = workbook.addWorksheet('Évolution mensuelle');
+      sheet2.columns = [
+        { header: 'Mois', key: 'mois', width: 20 },
+        { header: 'Total (DA)', key: 'total', width: 25, style: { numFmt: numberFormat } }
+      ];
+
+      // Style header
+      sheet2.getRow(1).font = headerFont;
+      sheet2.getRow(1).fill = headerFill;
+
+      // Add data
+      data.trend.forEach(item => {
+        sheet2.addRow({
+          mois: item.name,
+          total: item.total
+        });
+      });
+
+      // Add total row at the bottom of sheet2 for consistency with dashboard
+      const totalTrend = data.trend.reduce((sum, item) => sum + item.total, 0);
+      sheet2.addRow([]); // empty row
+      const totalRow = sheet2.addRow({
+        mois: 'TOTAL',
+        total: totalTrend
+      });
+      totalRow.font = headerFont;
+
+      // Generate and save file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const fileName = `finance-${new Date().toISOString().split('T')[0]}.xlsx`;
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
+      
+    } catch (err) {
+      console.error('Erreur lors de la génération Excel', err);
+      alert('Erreur lors de la génération du fichier export.');
+    }
   };
 
   if (loading) {
@@ -105,7 +154,7 @@ export default function FinancesPage() {
           className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors shadow-sm"
         >
           <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-          Exporter CSV
+          Exporter Excel
         </button>
       </div>
 
