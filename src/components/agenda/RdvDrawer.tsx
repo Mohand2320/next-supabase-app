@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  X, User, Phone, Clock, Calendar as CalIcon, Stethoscope, FileText,
+  X, User, Phone, Clock, Calendar as CalIcon, FileText,
   CheckCircle2, XCircle, ArrowRightCircle, Trash2
 } from 'lucide-react';
 import type { RendezVous } from '@/types/rdv';
