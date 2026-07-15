@@ -159,7 +159,7 @@ export default function RdvDrawer({
             </div>
 
             {/* Actions Footer */}
-            {rdv.statut !== 'ANNULE' && rdv.statut !== 'TERMINE' && (
+            {rdv.statut !== 'TERMINE' && (
               <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex flex-wrap gap-2">
                 {rdv.statut === 'PLANIFIE' && (
                   <button
@@ -181,15 +181,17 @@ export default function RdvDrawer({
                   </button>
                 )}
 
-                <button
-                  onClick={onAnnuler}
-                  className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-rose-200 text-rose-600 rounded-lg text-sm font-semibold hover:bg-rose-50 transition-colors"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Annuler
-                </button>
+                {rdv.statut !== 'ANNULE' && (
+                  <button
+                    onClick={onAnnuler}
+                    className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-rose-200 text-rose-600 rounded-lg text-sm font-semibold hover:bg-rose-50 transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Annuler
+                  </button>
+                )}
 
-                {rdv.statut === 'PLANIFIE' && (
+                {(rdv.statut === 'PLANIFIE' || rdv.statut === 'ANNULE') && (
                   <button
                     onClick={() => {
                       if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement ce RDV ?")) {

@@ -129,9 +129,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'RDV non trouvé' }, { status: 404 });
     }
 
-    if (existing.statut !== 'PLANIFIE') {
+    if (existing.statut !== 'PLANIFIE' && existing.statut !== 'ANNULE') {
       return NextResponse.json(
-        { error: 'Seul un RDV planifié peut être supprimé. Utilisez l\'annulation pour les autres statuts.' },
+        { error: 'Seuls les RDV planifiés ou annulés peuvent être supprimés.' },
         { status: 422 }
       );
     }
