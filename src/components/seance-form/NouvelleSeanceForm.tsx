@@ -199,8 +199,111 @@ export default function NouvelleSeanceForm({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       
-      {/* GAUCHE: Odontogramme & Observations (col-span-3) */}
-      <div className="lg:col-span-3 space-y-6">
+      {/* ── AJOUTER UN ACTE (DOM 1er pour accessibilité mobile, visuellement 1er sur mobile / 2e en desktop) ── */}
+      <div className="order-1 lg:order-2 lg:col-span-2 lg:col-start-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-t-4 border-t-teal-500">
+        <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <Plus className="w-5 h-5 text-teal-600" /> Ajouter un acte
+        </h3>
+        
+        <div className="space-y-4">
+          <div className="relative">
+            <label className={labelClass}>Acte médical</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={rechercheActe}
+                onChange={(e) => {
+                  setRechercheActe(e.target.value);
+                  setDropdownOuvert(true);
+                  if (acteChoisiId) setActeChoisiId('');
+                }}
+                onFocus={() => setDropdownOuvert(true)}
+                onBlur={() => {
+                  setTimeout(() => setDropdownOuvert(false), 200);
+                }}
+                placeholder="Rechercher ou sélectionner un acte..."
+                className={inputClass}
+              />
+              
+              {dropdownOuvert && (
+                <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {actesFiltres.length === 0 ? (
+                    <li className="px-3 py-2 text-sm text-slate-500 text-center">Aucun acte trouvé</li>
+                  ) : (
+                    actesFiltres.map(acte => (
+                      <li 
+                        key={acte.acteId}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectionnerActe(acte.acteId);
+                        }}
+                        className="px-3 py-2 text-sm hover:bg-teal-50 cursor-pointer flex items-center gap-2 transition-colors border-b border-slate-50 last:border-0"
+                      >
+                        <span 
+                          className="w-2.5 h-2.5 rounded-full shrink-0" 
+                          style={{ backgroundColor: acte.couleur }} 
+                        />
+                        <span className="truncate">{acte.libelle}</span>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+            </div>
+            
+            {acteSelectionne && (
+              <div className="flex items-center gap-2 mt-2">
+                <span 
+                  className="w-3 h-3 rounded-full inline-block shrink-0 shadow-sm"
+                  style={{ backgroundColor: acteSelectionne.couleur }}
+                />
+                <span className="text-xs font-semibold text-slate-700 truncate">
+                  {acteSelectionne.libelle}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Quantité</label>
+              <input 
+                type="number" 
+                min="1" 
+                value={quantite} 
+                onChange={e => setQuantite(parseInt(e.target.value) || 1)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Prix Appliqué (DA)</label>
+              <input 
+                type="text"
+                inputMode="decimal"
+                value={prixUnitaire} 
+                onChange={e => {
+                  const v = e.target.value;
+                  if (/^[\d.,]*$/.test(v)) setPrixUnitaire(v);
+                }}
+                className={inputClass}
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <button 
+            type="button"
+            onClick={handleAjouterLigne}
+            disabled={!acteChoisiId}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50"
+          >
+            Ajouter à la séance
+          </button>
+        </div>
+      </div>
+
+      {/* GAUCHE: Odontogramme & Observations (visuellement 1er en desktop, 2e en mobile) */}
+      <div className="order-2 lg:order-1 lg:col-span-3 space-y-6">
 
         {/* Composant Odontogramme */}
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-2 overflow-hidden">
@@ -240,117 +343,8 @@ export default function NouvelleSeanceForm({
 
       </div>
 
-
-      {/* DROITE: Saisie des actes & Total (col-span-2) */}
-      <div className="lg:col-span-2 space-y-6 flex flex-col">
-        
-        {/* Formulaire d'ajout d'un acte */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-t-4 border-t-teal-500">
-          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-teal-600" /> Ajouter un acte
-          </h3>
-          
-          <div className="space-y-4">
-            <div className="relative">
-              <label className={labelClass}>Acte médical</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={rechercheActe}
-                  onChange={(e) => {
-                    setRechercheActe(e.target.value);
-                    setDropdownOuvert(true);
-                    if (acteChoisiId) setActeChoisiId(''); // Réinitialiser l'ID si on tape
-                  }}
-                  onFocus={() => setDropdownOuvert(true)}
-                  onBlur={() => {
-                    // Délai pour permettre le clic sur une option (onMouseDown est utilisé mais par sécurité)
-                    setTimeout(() => setDropdownOuvert(false), 200);
-                  }}
-                  placeholder="Rechercher ou sélectionner un acte..."
-                  className={inputClass}
-                />
-                
-                {dropdownOuvert && (
-                  <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {actesFiltres.length === 0 ? (
-                      <li className="px-3 py-2 text-sm text-slate-500 text-center">Aucun acte trouvé</li>
-                    ) : (
-                      actesFiltres.map(acte => (
-                        <li 
-                          key={acte.acteId}
-                          onMouseDown={(e) => {
-                            e.preventDefault(); // Empêche le blur de l'input avant le clic
-                            selectionnerActe(acte.acteId);
-                          }}
-                          className="px-3 py-2 text-sm hover:bg-teal-50 cursor-pointer flex items-center gap-2 transition-colors border-b border-slate-50 last:border-0"
-                        >
-                          <span 
-                            className="w-2.5 h-2.5 rounded-full shrink-0" 
-                            style={{ backgroundColor: acte.couleur }} 
-                          />
-                          <span className="truncate">{acte.libelle}</span>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                )}
-              </div>
-              
-              {/* Pastille couleur de l'acte sélectionné */}
-              {acteSelectionne && (
-                <div className="flex items-center gap-2 mt-2">
-                  <span 
-                    className="w-3 h-3 rounded-full inline-block shrink-0 shadow-sm"
-                    style={{ backgroundColor: acteSelectionne.couleur }}
-                  />
-                  <span className="text-xs font-semibold text-slate-700 truncate">
-                    {acteSelectionne.libelle}
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Quantité</label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  value={quantite} 
-                  onChange={e => setQuantite(parseInt(e.target.value) || 1)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                {/* ── TÂCHE 5 : Devise DA ── */}
-                <label className={labelClass}>Prix Appliqué (DA)</label>
-                <input 
-                  type="text"
-                  inputMode="decimal"
-                  value={prixUnitaire} 
-                  onChange={e => {
-                    const v = e.target.value;
-                    if (/^[\d.,]*$/.test(v)) setPrixUnitaire(v);
-                  }}
-                  className={inputClass}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            <button 
-              type="button"
-              onClick={handleAjouterLigne}
-              disabled={!acteChoisiId}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50"
-            >
-              Ajouter à la séance
-            </button>
-          </div>
-        </div>
-
-        {/* Liste des actes ajoutés */}
+      {/* DROITE: Liste des actes & Total (visuellement 3e) */}
+      <div className="order-3 lg:order-3 lg:col-span-2 lg:col-start-4 space-y-6 flex flex-col">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col">
           <div className="p-4 border-b border-slate-100 flex-1">
             <h3 className="font-bold text-slate-900 mb-4">Actes réalisés ({lignes.length})</h3>
@@ -382,7 +376,6 @@ export default function NouvelleSeanceForm({
                     </div>
                     
                     <div className="flex flex-col items-end shrink-0 gap-1">
-                      {/* ── TÂCHE 5 : formatMontant ── */}
                       <span className="text-sm font-bold" style={{ color: ligne.couleur }}>
                         {formatMontant(ligne.prixApplique * ligne.quantite)}
                       </span>
@@ -404,7 +397,6 @@ export default function NouvelleSeanceForm({
           <div className="p-4 bg-slate-50 rounded-b-xl border-t border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Total Séance</span>
-              {/* ── TÂCHE 5 : formatMontant ── */}
               <span className="text-2xl font-black text-slate-900">{formatMontant(totalSeance)}</span>
             </div>
             
@@ -428,7 +420,6 @@ export default function NouvelleSeanceForm({
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );
