@@ -15,9 +15,10 @@ export interface RowAction {
 
 interface RowActionsProps {
   actions: RowAction[];
+  forceInline?: boolean;
 }
 
-export function RowActions({ actions }: RowActionsProps) {
+export function RowActions({ actions, forceInline = false }: RowActionsProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +43,7 @@ export function RowActions({ actions }: RowActionsProps) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [open]);
 
-  const showKebabOnMobile = actions.length > 2;
+  const showKebabOnMobile = !forceInline && actions.length > 2;
 
   return (
     <>
