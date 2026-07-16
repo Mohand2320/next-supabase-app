@@ -47,6 +47,15 @@ export async function deletePatient(id: string): Promise<void> {
   }
 }
 
+export async function deleteTreatment(patientId: string, treatmentId: string): Promise<void> {
+  const response = await fetch(`/api/patients/${patientId}/treatments/${treatmentId}`, { method: 'DELETE' });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Erreur lors de la suppression de la séance');
+  }
+}
+
 export function sortPatientsByName(patients: Patient[]) {
   return [...patients].sort((left, right) => {
     const leftValue = `${left.last_name} ${left.first_name}`.toLowerCase();
