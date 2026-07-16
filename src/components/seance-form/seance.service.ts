@@ -11,20 +11,16 @@ export async function getCatalogueActes(
   supabase: SupabaseClient<any, "public", any>,
   dentisteId: string
 ): Promise<CatalogueActeItem[]> {
-  // 1. Récupérer tous les actes de base (incluant couleur)
-  const { data: actesBase, error: errBase } = await supabase
-    .from('actes_medicaux')
-    .select('*');
+  // 1 & 2. Lancer les deux requêtes indépendantes en parallèle
+  const [baseResult, catResult] = await Promise.all([
+    supabase.from('actes_medicaux').select('*'),
+    supabase.from('catalogues_actes').select('id').eq('dentiste_id', dentisteId).maybeSingle()
+  ]);
 
+  const { data: actesBase, error: errBase } = baseResult;
   if (errBase) throw errBase;
 
-  // 2. Tenter de récupérer le catalogue personnalisé du dentiste
-  const { data: catalogue, error: errCat } = await supabase
-    .from('catalogues_actes')
-    .select('id')
-    .eq('dentiste_id', dentisteId)
-    .maybeSingle();
-
+  const { data: catalogue, error: errCat } = catResult;
   if (errCat) throw errCat;
 
   let itemsPersonnalises: any[] = [];

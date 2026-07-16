@@ -1,6 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
 import { createClientServer } from '@/lib/supabase/server';
-import { getCurrentUserProfile } from '@/services/user.service';
 import NouvelleSeanceForm from '@/components/seance-form/NouvelleSeanceForm';
 import { getCatalogueActes } from '@/components/seance-form/seance.service';
 import { ArrowLeft, User, Calendar, Activity, Clock } from 'lucide-react';
@@ -15,32 +14,38 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
   const patientId = params.id;
   const supabase = await createClientServer();
 
-  // 1 & 2. Lancer les requêtes en parallèle (Auth/Profil et Données Patient)
-  const [userResult, patientResult] = await Promise.all([
-    getCurrentUserProfile(),
-    supabase.from('patients').select('*').eq('id', patientId).single()
+  // ── Étape 1 : Lancer TOUTES les requêtes indépendantes en parallèle ──
+  const [authResult, patientResult, firstDentistResult] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from('patients').select('id, nom, prenom, date_naissance').eq('id', patientId).single(),
+    supabase.from('dentistes').select('id').limit(1).single(),
   ]);
 
-  const { data: userData } = userResult;
+  const { data: { user } } = authResult;
   const { data: patient } = patientResult;
 
-  if (!userData) {
+  if (!user) {
+    redirect('/login');
+  }
+  if (!patient) {
+    notFound();
+  }
+
+  // ── Étape 2 : Récupérer le profil + dentiste_id (une seule requête) ──
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role, dentiste_id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!profile) {
     redirect('/login');
   }
 
-  let dentisteId = userData.profile.dentiste_id;
-
-  // Si c'est un assistant, et qu'il n'y a qu'un seul dentiste dans le cabinet :
-  if (userData.role === 'assistant' || !dentisteId) {
-    const { data: firstDentist } = await supabase
-      .from('dentistes')
-      .select('id')
-      .limit(1)
-      .single();
-      
-    if (firstDentist) {
-      dentisteId = firstDentist.id;
-    }
+  // Déterminer le dentiste_id : soit depuis le profil, soit le premier dentiste du cabinet
+  let dentisteId = profile.dentiste_id;
+  if (!dentisteId && firstDentistResult.data) {
+    dentisteId = firstDentistResult.data.id;
   }
 
   if (!dentisteId) {
@@ -51,11 +56,7 @@ export default async function NouvelleSeancePage(props: { params: Promise<{ id: 
     );
   }
 
-  if (!patient) {
-    notFound();
-  }
-
-  // 3. Charger le catalogue (dépend du dentiste)
+  // ── Étape 3 : Charger le catalogue (dépend du dentiste_id) ──
   const catalogueActes = await getCatalogueActes(supabase, dentisteId);
 
   // Formater la date de naissance lisiblement
