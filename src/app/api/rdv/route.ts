@@ -4,8 +4,33 @@ import { requireRoles } from '@/lib/auth/guards';
 import { rdvDbToApi, rdvApiToDb } from '@/lib/mappers/rdv';
 import { rdvCreateSchema, rdvCalendarQuerySchema } from '@/lib/validations/rdv';
 
+// Colonnes explicites pour optimiser la requete (evite SELECT *)
+const RDV_COLUMNS = `
+  id,
+  patient_id,
+  nom_minimal,
+  prenom_minimal,
+  telephone_minimal,
+  dentiste_id,
+  date_heure,
+  duree,
+  statut,
+  origine_annulation,
+  motif,
+  observation,
+  couleur,
+  seance_id,
+  cree_par,
+  modifie_par,
+  created_at,
+  updated_at
+`;
+
+const PATIENT_COLUMNS = 'id, nom, prenom, telephone';
+const DENTISTE_COLUMNS = 'id, nom, prenom';
+
 // ============================================================
-// GET /api/rdv — Liste des RDV (filtrés par plage de dates)
+// GET /api/rdv — Liste des RDV (filtres par plage de dates)
 // ============================================================
 export async function GET(request: Request) {
   try {
@@ -33,7 +58,7 @@ export async function GET(request: Request) {
     const validation = rdvCalendarQuerySchema.safeParse(params);
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Paramètres invalides', details: validation.error.format() },
+        { error: 'Parametres invalides', details: validation.error.format() },
         { status: 400 }
       );
     }
@@ -42,7 +67,7 @@ export async function GET(request: Request) {
 
     let builder = supabase
       .from('rendez_vous')
-      .select('*, patients(id, nom, prenom, telephone), dentistes(id, nom, prenom)', { count: 'exact' })
+      .select(`${RDV_COLUMNS}, patients(${PATIENT_COLUMNS}), dentistes(${DENTISTE_COLUMNS})`, { count: 'exact' })
       .gte('date_heure', query.date_debut)
       .lte('date_heure', query.date_fin)
       .order('date_heure', { ascending: query.sort === 'date_asc' });
@@ -96,7 +121,7 @@ export async function GET(request: Request) {
 }
 
 // ============================================================
-// POST /api/rdv — Création d'un RDV
+// POST /api/rdv — Creation d'un RDV
 // Statut initial toujours PLANIFIE
 // ============================================================
 export async function POST(request: Request) {
@@ -112,13 +137,13 @@ export async function POST(request: Request) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Validation échouée', details: validation.error.flatten().fieldErrors },
+        { error: 'Validation echouee', details: validation.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
 
     const dbPayload = rdvApiToDb(validation.data);
-    // Statut initial toujours PLANIFIE (règle métier non négociable)
+    // Statut initial toujours PLANIFIE (regle metier non negociable)
     dbPayload.statut = 'PLANIFIE';
     dbPayload.cree_par = user.id;
     dbPayload.modifie_par = user.id;
@@ -126,13 +151,13 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from('rendez_vous')
       .insert([dbPayload])
-      .select('*, patients(id, nom, prenom, telephone), dentistes(id, nom, prenom)')
+      .select(`${RDV_COLUMNS}, patients(${PATIENT_COLUMNS}), dentistes(${DENTISTE_COLUMNS})`)
       .single();
 
     if (error) {
       console.error('[API_ERROR] POST /api/rdv:', error);
       return NextResponse.json(
-        { error: 'Erreur lors de la création du RDV', details: error.message },
+        { error: 'Erreur lors de la creation du RDV', details: error.message },
         { status: error.code === '42501' ? 403 : 500 }
       );
     }
