@@ -8,7 +8,7 @@ import type { Treatment } from '@/types/patient';
 import { determinerDentureInitiale } from '@/components/seance-form/types';
 import 'react-odontogram/style.css';
 
-const Odontogram = dynamic(() => import('react-odontogram'), { ssr: false });
+import Odontogram from '@/components/patients/OdontogramWrapper';
 
 type ToothDetail = {
   id: string;
