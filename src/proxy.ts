@@ -1,44 +1,57 @@
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Create Supabase client for the proxy
-async function createProxyClient() {
-  const cookieStore = await cookies();
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) =>
-          cookieStore.set(name, value, options)
-        );
-      },
+/**
+ * Proxy (Next.js 16 convention, replaces middleware.ts)
+ * Handles Supabase Authentication and Route Protection.
+ *
+ * Uses getUser() to refresh the session if expired —
+ * this is critical for keeping auth cookies alive.
+ */
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
     },
   });
-}
 
-export async function proxy(request: NextRequest) {
-  const supabase = await createProxyClient();
+  // 1. Initialize Supabase Client using request/response cookies
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
 
-  // Fast local JWT verification (no network round-trip with asymmetric keys)
-  // Uses getClaims() which validates signature locally using cached JWKS
-  const { data: claimsData } = await supabase.auth.getClaims();
+  // 2. Refresh session if expired (getUser() triggers token refresh)
+  const { data: { user } } = await supabase.auth.getUser();
 
   const url = request.nextUrl.clone();
-  const userId = claimsData?.claims?.sub ?? null;
 
-  // Check is_active for authenticated users (requires DB query - sensitive check)
-  if (userId) {
+  // Vérification de is_active pour les utilisateurs connectés
+  if (user) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('is_active')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .single();
 
     if (profile && profile.is_active === false) {
@@ -48,20 +61,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Route Protection Logic
+  // 3. Route Protection Logic
   // Protect /dashboard and /update-password
-  if (!userId && (url.pathname.startsWith('/dashboard') || url.pathname === '/update-password')) {
+  if (!user && (url.pathname.startsWith('/dashboard') || url.pathname === '/update-password')) {
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
   // Prevent logged-in users from accessing /login
-  if (userId && (url.pathname === '/login' || url.pathname === '/')) {
+  if (user && (url.pathname === '/login' || url.pathname === '/')) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 // Ensure proxy runs for all routes except static assets and API routes
