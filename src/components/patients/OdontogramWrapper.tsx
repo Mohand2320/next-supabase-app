@@ -6,12 +6,10 @@ import type { OdontogramProps } from 'react-odontogram';
 const Odontogram = dynamic(() => import('react-odontogram'), { ssr: false });
 
 /**
- * Wrapper for react-odontogram to suppress React 19 hydration warnings
- * about invalid SVG props (stroke-width, stroke-linecap, stroke-linejoin).
+ * Wrapper for react-odontogram to suppress React 19 hydration warnings.
  * 
- * The underlying library uses kebab-case SVG attributes which React 19
- * warns about in strict mode. This wrapper renders without strict mode
- * to suppress these cosmetic warnings.
+ * The underlying library triggers hydration mismatches or strict mode warnings
+ * with React 19. This dynamic wrapper renders without SSR to bypass these issues.
  */
 export default function OdontogramWrapper(props: OdontogramProps) {
   return <Odontogram {...props} />;

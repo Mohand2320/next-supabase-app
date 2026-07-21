@@ -160,7 +160,7 @@ export default function PatientDetailPage() {
         {/* Treatments */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="w-5 h-5 text-blue-600" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" stroke-linecap="round"/></svg> Traitements</h3>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-blue-600" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" strokeLinecap="round"/></svg> Traitements</h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { fetchForOdontogram(); setShowOdontogram(true); }}
@@ -193,7 +193,7 @@ export default function PatientDetailPage() {
           )}
 
           {treatments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="w-10 h-10 mb-2" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" stroke-linecap="round"/></svg><p className="text-sm">Aucun traitement enregistré</p></div>
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 mb-2" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" strokeLinecap="round"/></svg><p className="text-sm">Aucun traitement enregistré</p></div>
           ) : (
             <>
               {/* Mobile: cards */}
