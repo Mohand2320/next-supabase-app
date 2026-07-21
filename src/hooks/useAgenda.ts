@@ -103,7 +103,7 @@ function getDateRange(date: Date, view: CalendarView): { start: string; end: str
 
 export function useAgenda(): UseAgendaReturn {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<CalendarView>('week');
+  const [view, setView] = useState<CalendarView>('day');
   const [rdvs, setRdvs] = useState<RendezVous[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
