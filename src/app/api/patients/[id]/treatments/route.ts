@@ -26,7 +26,7 @@ export async function GET(
     // Récupérer l'historique via la vue agrégée
     const { data: treatments, count, error } = await supabase
       .from('v_historique_seances')
-      .select('*', { count: 'exact' })
+      .select('id, patient_id, date, description, cost, created_at, treatment_type, tooth_number', { count: 'exact' })
       .eq('patient_id', id)
       .order('date', { ascending: false })
       .range(offset, offset + limit - 1);

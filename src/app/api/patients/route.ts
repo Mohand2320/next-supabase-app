@@ -106,7 +106,7 @@ export async function GET(request: Request) {
     }
 
     const query = validation.data;
-    let builder = supabase.from('patients').select('*', { count: 'exact' });
+    let builder = supabase.from('patients').select('id, nom, prenom, date_naissance, sexe, adresse, telephone, email, created_at, updated_at', { count: 'exact' });
 
     if (query.search) {
       const search = `%${query.search}%`;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, startTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'motion/react';
 import { X, Eye, CalendarDays, FileText, DollarSign, Sparkles } from 'lucide-react';
@@ -298,7 +298,9 @@ export default function PatientOdontogramDrawer({
                   showTooltip
                   onChange={(selectedTeeth: Array<{ id: string }>) => {
                     const nextSelected = selectedTeeth?.[0]?.id ?? null;
-                    setActiveToothId(nextSelected);
+                    startTransition(() => {
+                      setActiveToothId(nextSelected);
+                    });
                   }}
                   className="w-full"
                 />

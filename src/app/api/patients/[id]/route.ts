@@ -21,7 +21,7 @@ export async function GET(
 
     const { data: patientRaw, error: patientError } = await supabase
       .from('patients')
-      .select('*')
+      .select('id, nom, prenom, date_naissance, sexe, adresse, telephone, email, groupe_sanguin, created_at, updated_at')
       .eq('id', id)
       .single();
 
@@ -33,7 +33,7 @@ export async function GET(
     }
 
     // fetch profile
-    const { data: profile } = await supabase.from('profils_medicaux').select('*').eq('patient_id', id).single();
+    const { data: profile } = await supabase.from('profils_medicaux').select('allergies, antecedents, diabete').eq('patient_id', id).single();
     const patient = dbToApi(patientRaw);
     if (profile) {
       patient.allergies = profile.allergies || [];

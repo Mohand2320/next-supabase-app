@@ -119,10 +119,10 @@ function useDashboardStats() {
       const thirtyDaysAgoStart = startOfDay(thirtyDaysAgo);
 
       const results = await Promise.all([
-        supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).gte('date_heure', todayStart).lte('date_heure', todayEnd),
-        supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).eq('statut', 'PLANIFIE'),
-        supabase.from('patients').select('*', { count: 'exact', head: true }),
-        supabase.from('patients').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgoStart),
+        supabase.from('rendez_vous').select('id', { count: 'exact', head: true }).gte('date_heure', todayStart).lte('date_heure', todayEnd),
+        supabase.from('rendez_vous').select('id', { count: 'exact', head: true }).eq('statut', 'PLANIFIE'),
+        supabase.from('patients').select('id', { count: 'exact', head: true }),
+        supabase.from('patients').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgoStart),
       ]);
 
       const newErrors: Record<number, string | null> = {};
