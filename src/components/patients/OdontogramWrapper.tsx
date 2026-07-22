@@ -24,8 +24,17 @@ export default function OdontogramWrapper({ typeDenture, onChange, maxTeeth: max
 
   useEffect(() => {
     if (!isChild) return;
-    const patchLabels = () => {
+
+    const SVG_WIDTH = 409;
+    const SVG_HEIGHT = 694;
+    const GAP_REDUCTION = 250;
+    const NEW_HEIGHT = SVG_HEIGHT - GAP_REDUCTION;
+    const TARGET_VIEWBOX = `0 0 ${SVG_WIDTH} ${NEW_HEIGHT}`;
+
+    const patchChildOdontogram = () => {
       if (!containerRef.current) return;
+
+      // 1. Patch text labels to child FDI notation
       containerRef.current.querySelectorAll('svg text').forEach((el) => {
         const text = el.textContent;
         if (text && /^\d{2}$/.test(text)) {
@@ -35,11 +44,35 @@ export default function OdontogramWrapper({ typeDenture, onChange, maxTeeth: max
           }
         }
       });
+
+      // 2. Reduce gap between upper and lower arches
+      const svg = containerRef.current.querySelector('svg.Odontogram');
+      if (!svg) return;
+
+      if (svg.getAttribute('viewBox') !== TARGET_VIEWBOX) {
+        svg.setAttribute('viewBox', TARGET_VIEWBOX);
+      }
+
+      const groups = svg.querySelectorAll(':scope > g');
+      // groups[0] = upper right  — no change needed
+      // groups[1] = upper left   — no change needed
+      // groups[2] = lower right  — update translate to use NEW_HEIGHT
+      // groups[3] = lower left   — update translate to use NEW_HEIGHT
+      const lowerRightTransform = `scale(1, -1) translate(0, -${NEW_HEIGHT})`;
+      const lowerLeftTransform = `scale(-1, -1) translate(-${SVG_WIDTH}, -${NEW_HEIGHT})`;
+
+      if (groups[2] && groups[2].getAttribute('transform') !== lowerRightTransform) {
+        groups[2].setAttribute('transform', lowerRightTransform);
+      }
+      if (groups[3] && groups[3].getAttribute('transform') !== lowerLeftTransform) {
+        groups[3].setAttribute('transform', lowerLeftTransform);
+      }
     };
-    patchLabels();
+
+    patchChildOdontogram();
     const node = containerRef.current;
     if (!node) return;
-    const observer = new MutationObserver(patchLabels);
+    const observer = new MutationObserver(patchChildOdontogram);
     observer.observe(node, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
   }, [isChild, teethConditionsProp, defaultSelectedProp]);
@@ -132,3 +165,4 @@ export default function OdontogramWrapper({ typeDenture, onChange, maxTeeth: max
     </div>
   );
 }
+
