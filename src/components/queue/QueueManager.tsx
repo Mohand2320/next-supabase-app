@@ -137,4 +137,5 @@ export default function QueueManager() {
       />
     </div>
   );
+}
 
