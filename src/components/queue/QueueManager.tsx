@@ -1,7 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Plus, Users } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { queueService } from '@/services/queue.service';
 import type { FileAttente, StatutQueue } from '@/types/queue';
 import QueueList from './QueueList';
@@ -14,7 +27,7 @@ export default function QueueManager() {
 
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
 
-  const loadQueue = async () => {
+  const loadQueue = useCallback(async () => {
     setLoading(true);
     try {
       const data = await queueService.getTodayQueue();
@@ -25,11 +38,16 @@ export default function QueueManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadQueue();
-  }, []);
+  }, [loadQueue]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+  );
 
   const handleStatusChange = async (id: string, newStatus: StatutQueue) => {
     try {
@@ -40,55 +58,53 @@ export default function QueueManager() {
     }
   };
 
-  const handleMoveUp = async (index: number) => {
-    if (index === 0) return;
-    const newItems = [...items];
-    const temp = newItems[index - 1].position;
-    newItems[index - 1].position = newItems[index].position;
-    newItems[index].position = temp;
-    
-    const sorted = newItems.sort((a, b) => a.position - b.position);
-    setItems(sorted);
-
+  const persistOrder = async (ordered: FileAttente[]) => {
     try {
       await queueService.reorder({
-        items: [
-          { id: sorted[index - 1].id, position: sorted[index - 1].position },
-          { id: sorted[index].id, position: sorted[index].position }
-        ]
+        items: ordered.map((item, i) => ({ id: item.id, position: i + 1 })),
       });
-    } catch (err: any) {
+    } catch {
       alert('Erreur lors du réordonnancement');
       loadQueue();
     }
+  };
+
+  const handleMoveUp = async (index: number) => {
+    if (index === 0) return;
+    const newItems = [...items];
+    const [removed] = newItems.splice(index, 1);
+    newItems.splice(index - 1, 0, removed);
+    setItems(newItems);
+    await persistOrder(newItems);
   };
 
   const handleMoveDown = async (index: number) => {
     if (index === items.length - 1) return;
     const newItems = [...items];
-    const temp = newItems[index + 1].position;
-    newItems[index + 1].position = newItems[index].position;
-    newItems[index].position = temp;
-    
-    const sorted = newItems.sort((a, b) => a.position - b.position);
-    setItems(sorted);
+    const [removed] = newItems.splice(index, 1);
+    newItems.splice(index + 1, 0, removed);
+    setItems(newItems);
+    await persistOrder(newItems);
+  };
 
-    try {
-      await queueService.reorder({
-        items: [
-          { id: sorted[index].id, position: sorted[index].position },
-          { id: sorted[index + 1].id, position: sorted[index + 1].position }
-        ]
-      });
-    } catch (err: any) {
-      alert('Erreur lors du réordonnancement');
-      loadQueue();
-    }
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = items.findIndex((i) => i.id === active.id);
+    const newIndex = items.findIndex((i) => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newItems = [...items];
+    const [removed] = newItems.splice(oldIndex, 1);
+    newItems.splice(newIndex, 0, removed);
+    setItems(newItems);
+
+    await persistOrder(newItems);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header actions */}
       <div className="flex items-center gap-3">
         <button
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
@@ -99,14 +115,13 @@ export default function QueueManager() {
         </button>
       </div>
 
-      {/* Main Content */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {error && (
           <div className="p-4 bg-red-50 text-red-600 text-sm">
             {error}
           </div>
         )}
-        
+
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12 text-slate-500">
             <Loader2 className="h-8 w-8 animate-spin mb-4 text-blue-600" />
@@ -121,12 +136,16 @@ export default function QueueManager() {
             <p className="mt-1 text-sm text-slate-500">La file d'attente d'aujourd'hui est vide.</p>
           </div>
         ) : (
-          <QueueList 
-            items={items} 
-            onStatusChange={handleStatusChange} 
-            onMoveUp={handleMoveUp}
-            onMoveDown={handleMoveDown}
-          />
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+              <QueueList
+                items={items}
+                onStatusChange={handleStatusChange}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+              />
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
@@ -138,4 +157,3 @@ export default function QueueManager() {
     </div>
   );
 }
-
