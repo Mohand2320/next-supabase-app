@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   LayoutDashboard, Users, Calendar, CalendarCheck, Wallet,
-  Menu, X, User, Shield
+  Menu, X, User, Shield, ListOrdered
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -40,6 +40,7 @@ function UserProfileDisplay({ userData }: { userData: any }) {
 
 const NAV_ITEMS: { href: string; icon: any; label: string; adminOnly?: boolean }[] = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { href: '/dashboard/file-attente', icon: ListOrdered, label: 'File d\'attente' },
   { href: '/dashboard/patients', icon: Users, label: 'Patients' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/rendez-vous', icon: CalendarCheck, label: 'Rendez-vous' },
