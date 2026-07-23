@@ -108,3 +108,41 @@ BEGIN
   RETURN NEXT v_new_row;
 END;
 $$ LANGUAGE plpgsql;
+
+
+-- Contrainte unique (date_jour, position) pour garantir l'intégrité des positions
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'uq_file_attente_date_position'
+  ) THEN
+    ALTER TABLE file_attente
+    ADD CONSTRAINT uq_file_attente_date_position UNIQUE (date_jour, position);
+  END IF;
+END$$;
+
+
+-- Fonction RPC atomique avec verrou pour le réordonnancement
+-- Met à jour TOUTES les positions en une seule requête, pas seulement l'entrée déplacée
+-- Le verrou advisory empêche deux réordonnancements concurrents de s'entrelacer
+CREATE OR REPLACE FUNCTION reorder_queue(
+  p_items JSONB,
+  p_date_jour DATE DEFAULT CURRENT_DATE
+) RETURNS VOID AS $$
+BEGIN
+  -- Verrou transactionnel : un seul reorder à la fois par jour
+  PERFORM pg_advisory_xact_lock(hashtext('reorder_queue_' || p_date_jour::text));
+
+  -- Single UPDATE atomique — pas de trou ni de doublon possible
+  UPDATE file_attente AS f
+  SET position = item.position
+  FROM (
+    SELECT
+      (item->>'id')::UUID AS id,
+      (item->>'position')::INTEGER AS position
+    FROM jsonb_array_elements(p_items) AS item
+  ) AS item
+  WHERE f.id = item.id AND f.date_jour = p_date_jour;
+END;
+$$ LANGUAGE plpgsql;

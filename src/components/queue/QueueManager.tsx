@@ -64,6 +64,9 @@ export default function QueueManager() {
       await queueService.reorder({
         items: ordered.map((item, i) => ({ id: item.id, position: i + 1 })),
       });
+      // Synchroniser les positions dans le state local
+      // pour que #item.position reflète la nouvelle valeur en base
+      setItems(ordered.map((item, i) => ({ ...item, position: i + 1 })));
     } catch {
       alert('Erreur lors du réordonnancement');
       loadQueue();
