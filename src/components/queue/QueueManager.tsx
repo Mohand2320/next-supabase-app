@@ -11,14 +11,15 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+
 import { queueService } from '@/services/queue.service';
 import type { FileAttente, StatutQueue } from '@/types/queue';
 import QueueList from './QueueList';
 import QueueAddDialog from './QueueAddDialog';
+
+function stripSortablePrefix(raw: string): string {
+  return raw.replace(/^(mobile-|desktop-)/, '');
+}
 
 export default function QueueManager() {
   const [items, setItems] = useState<FileAttente[]>([]);
@@ -91,8 +92,11 @@ export default function QueueManager() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = items.findIndex((i) => i.id === active.id);
-    const newIndex = items.findIndex((i) => i.id === over.id);
+    const activeId = stripSortablePrefix(String(active.id));
+    const overId = stripSortablePrefix(String(over.id));
+
+    const oldIndex = items.findIndex((i) => i.id === activeId);
+    const newIndex = items.findIndex((i) => i.id === overId);
     if (oldIndex === -1 || newIndex === -1) return;
 
     const newItems = [...items];
@@ -137,14 +141,12 @@ export default function QueueManager() {
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-              <QueueList
-                items={items}
-                onStatusChange={handleStatusChange}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
-              />
-            </SortableContext>
+            <QueueList
+              items={items}
+              onStatusChange={handleStatusChange}
+              onMoveUp={handleMoveUp}
+              onMoveDown={handleMoveDown}
+            />
           </DndContext>
         )}
       </div>
