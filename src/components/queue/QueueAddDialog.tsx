@@ -123,7 +123,7 @@ export default function QueueAddDialog({ isOpen, onClose, onSuccess }: QueueAddD
             >
               <div className="flex items-center justify-center gap-2">
                 <Calendar className="w-4 h-4" />
-                RDV du jour
+                Depuis RDV
               </div>
             </button>
             <button
@@ -141,7 +141,7 @@ export default function QueueAddDialog({ isOpen, onClose, onSuccess }: QueueAddD
             >
               <div className="flex items-center justify-center gap-2">
                 <Plus className="w-4 h-4" />
-                Urgence / Visiteur
+                Ajouter urgence
               </div>
             </button>
           </div>

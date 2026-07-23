@@ -94,22 +94,8 @@ export default function QueueManager() {
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
           onClick={() => setAddDialogOpen(true)}
         >
-          <CalendarIcon className="h-4 w-4" />
-          Ajouter depuis RDV
-        </button>
-        <button
-          className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors"
-          onClick={() => setAddDialogOpen(true)}
-        >
-          <Users className="h-4 w-4" />
-          Patient existant
-        </button>
-        <button
-          className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors"
-          onClick={() => setAddDialogOpen(true)}
-        >
           <Plus className="h-4 w-4" />
-          Ajouter Urgence (Walk-in)
+          Ajouter un patient
         </button>
       </div>
 
@@ -151,27 +137,4 @@ export default function QueueManager() {
       />
     </div>
   );
-}
 
-// Temporary icon to avoid import error if Calendar is not used from lucide
-function CalendarIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M8 2v4" />
-      <path d="M16 2v4" />
-      <rect width="18" height="18" x="3" y="4" rx="2" />
-      <path d="M3 10h18" />
-    </svg>
-  );
-}
