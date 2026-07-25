@@ -186,13 +186,16 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
   const { bg, text } = statusColors[item.statut];
 
   return (
-    <div ref={setNodeRef} style={style} className="p-4 space-y-3">
+    <div ref={setNodeRef} style={style} className="p-4 space-y-4">
+      {/* Ligne 1 : Ordre, Flèches, Heure, Suppression */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button className="text-slate-400 hover:text-slate-600 touch-none cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
             <GripVertical className="w-4 h-4" />
           </button>
-          <span className="text-sm font-bold text-slate-700">#{item.position}</span>
+          <span className="flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-slate-800 text-white text-xs font-bold">
+            {item.position}
+          </span>
           <div className="flex gap-1">
             <button
               disabled={index === 0}
@@ -210,16 +213,12 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <select
-            value={item.statut}
-            onChange={(e) => onStatusChange(item.id, e.target.value as StatutQueue)}
-            className={`text-xs font-semibold rounded-full px-3 py-1 border-0 cursor-pointer focus:ring-2 focus:ring-blue-600 ${bg} ${text}`}
-          >
-            {Object.entries(statusLabels).map(([val, label]) => (
-              <option key={val} value={val}>{label}</option>
-            ))}
-          </select>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex items-center text-xs font-medium text-slate-500">
+            <Clock className="mr-1 h-3.5 w-3.5" />
+            {formatTime(item.heure_arrivee)}
+          </div>
           <button
             onClick={() => onRemove(item.id)}
             className="text-slate-400 hover:text-red-600 transition-colors p-1"
@@ -230,18 +229,14 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
         </div>
       </div>
 
-      <div className="flex items-center text-sm text-slate-600">
-        <Clock className="mr-2 h-4 w-4 text-slate-400" />
-        {formatTime(item.heure_arrivee)}
-      </div>
-
+      {/* Ligne 2 : Info patient */}
       <div className="flex items-center gap-3">
         <div className="flex-shrink-0 h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center">
           <User className="h-5 w-5 text-slate-500" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-slate-900 flex items-center gap-2">
-            {displayName}
+            <span className="truncate">{displayName}</span>
             {isWalkIn && (
               <span title="Urgence / Sans dossier" className="text-amber-500 shrink-0">
                 <AlertCircle className="w-4 h-4" />
@@ -256,11 +251,25 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
         </div>
       </div>
 
+      {/* Ligne 3 : Motif */}
       <div>
         <div className="text-sm text-slate-900">{displayMotif}</div>
         <div className="text-xs text-slate-500">
           {item.rendez_vous ? 'RDV programmé' : (isWalkIn ? 'Walk-in (Urgence)' : 'Patient existant')}
         </div>
+      </div>
+
+      {/* Ligne 4 : Statut (Séparé) */}
+      <div className="pt-1">
+        <select
+          value={item.statut}
+          onChange={(e) => onStatusChange(item.id, e.target.value as StatutQueue)}
+          className={`w-full text-sm font-semibold rounded-lg px-3 py-2 border-0 ring-1 ring-inset ring-slate-200 cursor-pointer focus:ring-2 focus:ring-inset focus:ring-blue-600 ${bg} ${text}`}
+        >
+          {Object.entries(statusLabels).map(([val, label]) => (
+            <option key={val} value={val}>{label}</option>
+          ))}
+        </select>
       </div>
     </div>
   );
