@@ -119,10 +119,10 @@ function useDashboardStats() {
       const thirtyDaysAgoStart = startOfDay(thirtyDaysAgo);
 
       const results = await Promise.all([
-        supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).gte('date_heure', todayStart).lte('date_heure', todayEnd),
-        supabase.from('rendez_vous').select('*', { count: 'exact', head: true }).eq('statut', 'PLANIFIE'),
-        supabase.from('patients').select('*', { count: 'exact', head: true }),
-        supabase.from('patients').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgoStart),
+        supabase.from('rendez_vous').select('id', { count: 'exact', head: true }).gte('date_heure', todayStart).lte('date_heure', todayEnd),
+        supabase.from('rendez_vous').select('id', { count: 'exact', head: true }).eq('statut', 'PLANIFIE'),
+        supabase.from('patients').select('id', { count: 'exact', head: true }),
+        supabase.from('patients').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgoStart),
       ]);
 
       const newErrors: Record<number, string | null> = {};
@@ -195,8 +195,8 @@ export default function DashboardPage() {
         duree: r.duree ?? 30,
         statut: r.statut,
         motif: r.motif,
-        patient_nom: r.patients?.nom ?? null,
-        patient_prenom: r.patients?.prenom ?? null,
+        patient_nom: r.patient?.nom ?? null,
+        patient_prenom: r.patient?.prenom ?? null,
         nom_minimal: r.nom_minimal,
         prenom_minimal: r.prenom_minimal,
         patient_id: r.patient_id,

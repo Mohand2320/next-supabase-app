@@ -2,16 +2,20 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
- * Middleware for Supabase Authentication and Route Protection
+ * Proxy (Next.js 16 convention, replaces middleware.ts)
+ * Handles Supabase Authentication and Route Protection.
+ *
+ * Uses getUser() to refresh the session if expired —
+ * this is critical for keeping auth cookies alive.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
-  // 1. Initialize Supabase Client
+  // 1. Initialize Supabase Client using request/response cookies
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -21,7 +25,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           response = NextResponse.next({
@@ -37,7 +41,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 2. Refresh session if expired
+  // 2. Refresh session if expired (getUser() triggers token refresh)
   const { data: { user } } = await supabase.auth.getUser();
 
   const url = request.nextUrl.clone();
@@ -70,12 +74,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 4. Log request for debug (removed for production)
-
   return response;
 }
 
-// Ensure middleware runs for all routes except static assets
+// Ensure proxy runs for all routes except static assets and API routes
 export const config = {
   matcher: [
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',

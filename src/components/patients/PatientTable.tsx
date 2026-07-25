@@ -100,6 +100,7 @@ export function PatientTable({
                 <td className="px-6 py-4 text-sm text-slate-600">{formatDate(patient.created_at)}</td>
                 <td className="px-6 py-4 text-right">
                   <RowActions
+                    forceInline
                     actions={[
                       { icon: Eye, label: 'Voir le patient', onClick: () => onView(patient.id) },
                       { icon: Edit2, label: 'Modifier le patient', onClick: () => onEdit(patient.id) },
@@ -146,6 +147,7 @@ export function PatientTable({
 
             <div className="mt-5 flex items-center justify-end gap-2">
               <RowActions
+                forceInline
                 actions={[
                   { icon: Eye, label: 'Voir le patient', onClick: () => onView(patient.id) },
                   { icon: Edit2, label: 'Modifier le patient', onClick: () => onEdit(patient.id) },

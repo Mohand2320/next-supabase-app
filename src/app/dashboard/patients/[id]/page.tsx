@@ -4,12 +4,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft, Edit2, Trash2, Loader2, Phone, Mail, MapPin,
-  Calendar, AlertTriangle, PlusCircle, Eye
+  Calendar, AlertTriangle, PlusCircle, Eye, X, AlertCircle
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import type { Patient, Treatment, TreatmentInsert } from '@/types/patient';
 import PatientOdontogramDrawer from '@/components/patients/PatientOdontogramDrawer';
+import { RowActions } from '@/components/ui/row-actions';
 import { usePaginatedList } from '@/hooks/use-paginated-list';
+import { deleteTreatment } from '@/services/patient.service';
 
 export default function PatientDetailPage() {
   const router = useRouter();
@@ -20,6 +22,8 @@ export default function PatientDetailPage() {
   const [showTreatmentForm, setShowTreatmentForm] = useState(false);
   const [savingTreatment, setSavingTreatment] = useState(false);
   const [showOdontogram, setShowOdontogram] = useState(false);
+  const [deletingTreatmentId, setDeletingTreatmentId] = useState<string | null>(null);
+  const [confirmDeleteTreatment, setConfirmDeleteTreatment] = useState<Treatment | null>(null);
   const [treatmentForm, setTreatmentForm] = useState<Omit<TreatmentInsert, 'patient_id'>>({
     date: new Date().toISOString().split('T')[0], treatment_type: '', tooth_number: null, description: null, cost: 0,
   });
@@ -29,6 +33,7 @@ export default function PatientDetailPage() {
     setPage: setTreatmentPage,
     currentPage: treatmentPage,
     totalPages: treatmentTotalPages,
+    reload,
   } = usePaginatedList<Treatment>(
     `/api/patients/${id}/treatments`,
     {},
@@ -61,6 +66,24 @@ export default function PatientDetailPage() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce patient et tout son historique ?')) return;
     await fetch(`/api/patients/${id}`, { method: 'DELETE' });
     router.push('/dashboard/patients');
+  };
+
+  const handleDeleteTreatment = async (treatment: Treatment) => {
+    setConfirmDeleteTreatment(treatment);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteTreatment) return;
+    setDeletingTreatmentId(confirmDeleteTreatment.id);
+    setConfirmDeleteTreatment(null);
+    try {
+      await deleteTreatment(id, confirmDeleteTreatment.id);
+      reload();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingTreatmentId(null);
+    }
   };
 
   const handleAddTreatment = async (e: React.FormEvent) => {
@@ -137,7 +160,7 @@ export default function PatientDetailPage() {
         {/* Treatments */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="w-5 h-5 text-blue-600" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" stroke-linecap="round"/></svg> Traitements</h3>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-blue-600" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" strokeLinecap="round"/></svg> Traitements</h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { fetchForOdontogram(); setShowOdontogram(true); }}
@@ -170,7 +193,7 @@ export default function PatientDetailPage() {
           )}
 
           {treatments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="w-10 h-10 mb-2" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" stroke-linecap="round"/></svg><p className="text-sm">Aucun traitement enregistré</p></div>
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 mb-2" aria-hidden="true"><path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/><path d="M9 6.5c1.2.8 3.5.8 6 0" strokeLinecap="round"/></svg><p className="text-sm">Aucun traitement enregistré</p></div>
           ) : (
             <>
               {/* Mobile: cards */}
@@ -179,7 +202,14 @@ export default function PatientDetailPage() {
                   <div key={t.id} className="p-4 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-900">{formatDate(t.date)}</span>
-                      <span className="text-sm font-semibold text-slate-900">{Number(t.cost).toFixed(2)} DA</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{Number(t.cost).toFixed(2)} DA</span>
+                        <RowActions
+                          actions={[
+                            { icon: Trash2, label: 'Supprimer', onClick: () => handleDeleteTreatment(t), variant: 'destructive', loading: deletingTreatmentId === t.id },
+                          ]}
+                        />
+                      </div>
                     </div>
                     <p className="text-sm text-slate-700">{t.treatment_type}{t.tooth_number ? ` — Dent ${t.tooth_number}` : ''}</p>
                     {t.description && <p className="text-xs text-slate-500">{t.description}</p>}
@@ -196,6 +226,7 @@ export default function PatientDetailPage() {
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Dent</th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Description</th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Coût</th>
+                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -206,6 +237,13 @@ export default function PatientDetailPage() {
                         <td className="px-6 py-4 text-sm text-slate-500">{t.tooth_number || '—'}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{t.description || '—'}</td>
                         <td className="px-6 py-4 text-sm text-slate-900 font-semibold text-right">{Number(t.cost).toFixed(2)} DA</td>
+                        <td className="px-6 py-4 text-sm text-right">
+                          <RowActions
+                            actions={[
+                              { icon: Trash2, label: 'Supprimer', onClick: () => handleDeleteTreatment(t), variant: 'destructive', loading: deletingTreatmentId === t.id },
+                            ]}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -246,6 +284,78 @@ export default function PatientDetailPage() {
         patientBirthDate={patient.date_of_birth}
         treatments={allTreatments}
       />
+
+      <AnimatePresence>
+        {confirmDeleteTreatment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmDeleteTreatment(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-rose-50/30">
+                <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Supprimer la séance</h2>
+                <button onClick={() => setConfirmDeleteTreatment(null)} className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-600">
+                  Vous êtes sur le point de supprimer définitivement cette séance. Cette action est irréversible.
+                </p>
+
+                <div className="bg-slate-50 rounded-xl p-4 space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Date</span>
+                    <span className="font-semibold text-slate-900">{formatDate(confirmDeleteTreatment.date)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Actes</span>
+                    <span className="font-semibold text-slate-900 text-right max-w-[200px]">{confirmDeleteTreatment.treatment_type}</span>
+                  </div>
+                  {confirmDeleteTreatment.tooth_number && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Dents</span>
+                      <span className="font-semibold text-slate-900">{confirmDeleteTreatment.tooth_number}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-slate-200">
+                    <span className="text-slate-500">Montant total</span>
+                    <span className="font-semibold text-slate-900">{Number(confirmDeleteTreatment.cost).toFixed(2)} DA</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirmDeleteTreatment(null)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-6 py-2 bg-rose-600 text-white text-sm font-semibold rounded-lg hover:bg-rose-700 transition-all shadow-md shadow-rose-100 flex items-center gap-2"
+                >
+                  Supprimer la séance
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

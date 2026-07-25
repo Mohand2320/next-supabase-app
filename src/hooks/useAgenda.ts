@@ -9,6 +9,7 @@ import type {
   RdvCreatePayload,
   RdvConvertPatientPayload,
 } from '@/types/rdv';
+import type { ConvertibleItem } from '@/components/agenda/PatientConversionModal';
 import {
   fetchRdvs,
   createRdv,
@@ -39,7 +40,7 @@ export interface UseAgendaReturn {
   cancelModalOpen: boolean;
   terminerFlowOpen: boolean;
   conversionData: {
-    rdv: RendezVous;
+    item: ConvertibleItem;
     candidats: Array<{ id: string; nom: string; prenom: string; telephone: string | null }>;
   } | null;
 
@@ -103,7 +104,7 @@ function getDateRange(date: Date, view: CalendarView): { start: string; end: str
 
 export function useAgenda(): UseAgendaReturn {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<CalendarView>('week');
+  const [view, setView] = useState<CalendarView>('day');
   const [rdvs, setRdvs] = useState<RendezVous[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -216,7 +217,7 @@ export function useAgenda(): UseAgendaReturn {
 
     if (result.conversion_proposee && result.candidats_patients) {
       setConversionData({
-        rdv: result.rdv,
+        item: result.rdv,
         candidats: result.candidats_patients,
       });
     }

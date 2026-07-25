@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useMemo, useState, startTransition } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { X, Eye, CalendarDays, FileText, DollarSign, Sparkles } from 'lucide-react';
+import { X, Eye, CalendarDays, DollarSign, Sparkles } from 'lucide-react';
 import type { Treatment } from '@/types/patient';
 import { determinerDentureInitiale } from '@/components/seance-form/types';
+import { mapToothIdToChild, isChildToothId } from '@/lib/odontogram';
 import 'react-odontogram/style.css';
 
-const Odontogram = dynamic(() => import('react-odontogram'), { ssr: false });
+import Odontogram from '@/components/patients/OdontogramWrapper';
 
 type ToothDetail = {
   id: string;
@@ -106,6 +106,8 @@ export default function PatientOdontogramDrawer({
 
   const { typeDenture, odontogramConditions, toothDetails, activeTooth } = useMemo(() => {
     const latestByTooth = new Map<string, ToothDetail>();
+    const dentureType = determinerDentureInitiale(patientBirthDate);
+    const isChild = dentureType === 'ENFANT';
 
     treatments
       .slice()
@@ -113,9 +115,12 @@ export default function PatientOdontogramDrawer({
       .forEach((treatment) => {
         const color = colorForTreatmentType(treatment.treatment_type);
         parseToothNumbers(treatment.tooth_number).forEach((tooth) => {
-          latestByTooth.set(tooth, {
-            id: tooth,
-            label: tooth.replace('teeth-', ''),
+          const finalTooth = isChild && !isChildToothId(tooth)
+            ? mapToothIdToChild(tooth)
+            : tooth;
+          latestByTooth.set(finalTooth, {
+            id: finalTooth,
+            label: finalTooth.replace('teeth-', ''),
             treatmentType: treatment.treatment_type,
             color,
             date: treatment.date,
@@ -151,7 +156,7 @@ export default function PatientOdontogramDrawer({
     const activeTooth = activeToothId ? latestByTooth.get(activeToothId) ?? null : null;
 
     return {
-      typeDenture: determinerDentureInitiale(patientBirthDate),
+      typeDenture: dentureType,
       odontogramConditions: Array.from(conditionGroups.values()),
       toothDetails,
       activeTooth,
@@ -159,10 +164,19 @@ export default function PatientOdontogramDrawer({
   }, [activeToothId, patientBirthDate, treatments]);
 
   const activeTooltip = useMemo(() => {
-    return ({ id, notations, type }: any) => {
-      const tooth = toothDetails.find((item) => item.id === id) ?? toothDetails.find((item) => item.label === notations?.fdi) ?? null;
+    const isChild = typeDenture === 'ENFANT';
+    function TooltipRenderer(payload?: { id: string; notations: { fdi: string; universal: string; palmer: string }; type: string }) {
+      if (!payload) return null;
+      const { id, notations, type } = payload;
+      const effectiveId = isChild ? mapToothIdToChild(id) : id;
+      const tooth = toothDetails.find((item) => item.id === effectiveId) ?? toothDetails.find((item) => item.label === notations?.fdi) ?? null;
       if (!tooth) {
-        return <div className="max-w-[220px] rounded-xl bg-slate-900 px-3 py-2 text-xs text-white shadow-xl">Aucun traitement enregistré</div>;
+        return (
+          <div className="max-w-[220px] rounded-xl bg-slate-900 px-3 py-2 text-xs text-white shadow-xl border border-white/10">
+            <p className="font-semibold mb-1">Dent {notations?.fdi || effectiveId.replace('teeth-', '')}</p>
+            <p className="text-slate-400">Aucun acte enregistré</p>
+          </div>
+        );
       }
 
       return (
@@ -180,15 +194,23 @@ export default function PatientOdontogramDrawer({
           <p className="mt-2 text-[11px] text-slate-400">Cliquez pour ouvrir le détail de cette dent.</p>
         </div>
       );
-    };
-  }, [toothDetails]);
+    }
+    return TooltipRenderer;
+  }, [toothDetails, typeDenture]);
 
   const activeToothHistory = useMemo(() => {
     if (!activeTooth) return [];
 
     const toothNumber = activeTooth.id.replace('teeth-', '');
+    const isChild = isChildToothId(activeTooth.id);
     return treatments
-      .filter((treatment) => parseToothNumbers(treatment.tooth_number).includes(activeTooth.id))
+      .filter((treatment) => {
+        const treatmentIds = parseToothNumbers(treatment.tooth_number);
+        if (isChild) {
+          return treatmentIds.some(id => mapToothIdToChild(id) === activeTooth.id);
+        }
+        return treatmentIds.includes(activeTooth.id);
+      })
       .slice()
       .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
       .map((treatment) => ({
@@ -282,6 +304,7 @@ export default function PatientOdontogramDrawer({
 
               <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white p-2 sm:p-4">
                 <Odontogram
+                  typeDenture={typeDenture}
                   notation="FDI"
                   showLabels={false}
                   readOnly={false}
@@ -298,7 +321,9 @@ export default function PatientOdontogramDrawer({
                   showTooltip
                   onChange={(selectedTeeth: Array<{ id: string }>) => {
                     const nextSelected = selectedTeeth?.[0]?.id ?? null;
-                    setActiveToothId(nextSelected);
+                    startTransition(() => {
+                      setActiveToothId(nextSelected);
+                    });
                   }}
                   className="w-full"
                 />

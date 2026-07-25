@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   LayoutDashboard, Users, Calendar, CalendarCheck, Wallet,
-  Menu, X, User, Shield
+  Menu, X, User, Shield, ListOrdered
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -40,6 +40,7 @@ function UserProfileDisplay({ userData }: { userData: any }) {
 
 const NAV_ITEMS: { href: string; icon: any; label: string; adminOnly?: boolean }[] = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { href: '/dashboard/file-attente', icon: ListOrdered, label: 'File d\'attente' },
   { href: '/dashboard/patients', icon: Users, label: 'Patients' },
   { href: '/dashboard/agenda', icon: Calendar, label: 'Agenda' },
   { href: '/dashboard/rendez-vous', icon: CalendarCheck, label: 'Rendez-vous' },
@@ -82,9 +83,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Logo */}
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-200">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="w-6 h-6" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6" aria-hidden="true">
               <path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/>
-              <path d="M9 6.5c1.2.8 3.5.8 6 0" stroke-linecap="round"/>
+              <path d="M9 6.5c1.2.8 3.5.8 6 0" strokeLinecap="round"/>
             </svg>
         </div>
         <div>

@@ -5,7 +5,7 @@ import { rdvDbToApi, rdvApiToDb } from '@/lib/mappers/rdv';
 import { rdvCreateSchema, rdvCalendarQuerySchema } from '@/lib/validations/rdv';
 
 // ============================================================
-// GET /api/rdv — Liste des RDV (filtrés par plage de dates)
+// GET /api/rdv — Liste des RDV (filtres par plage de dates)
 // ============================================================
 export async function GET(request: Request) {
   try {
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
 
     let builder = supabase
       .from('rendez_vous')
-      .select('*, patients(id, nom, prenom, telephone), dentistes(id, nom, prenom)', { count: 'exact' })
+      .select('id, patient_id, dentiste_id, date_heure, duree, statut, motif, observation, couleur, seance_id, nom_minimal, prenom_minimal, telephone_minimal, origine_annulation, cree_par, modifie_par, created_at, updated_at, patients(id, nom, prenom, telephone), dentistes(id, nom, prenom)', { count: 'exact' })
       .gte('date_heure', query.date_debut)
       .lte('date_heure', query.date_fin)
       .order('date_heure', { ascending: query.sort === 'date_asc' });

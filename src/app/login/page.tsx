@@ -49,9 +49,9 @@ export default function Login() {
         {/* Header / Logo */}
         <div className="flex flex-col items-center justify-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-8 w-8" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8" aria-hidden="true">
               <path d="M12 2C7.46 2 4 5.5 4 10.5c0 3.2 1.8 6.5 3.5 8.5 1 1.2 2.5 2.8 4.5 2.8s3.5-1.6 4.5-2.8c1.7-2 3.5-5.3 3.5-8.5C20 5.5 16.54 2 12 2Z"/>
-              <path d="M9 6.5c1.2.8 3.5.8 6 0" stroke-linecap="round"/>
+              <path d="M9 6.5c1.2.8 3.5.8 6 0" strokeLinecap="round"/>
             </svg>
           </div>
           <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900">
