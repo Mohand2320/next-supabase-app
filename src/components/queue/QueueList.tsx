@@ -93,7 +93,7 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
   const waitInfo = getWaitInfo(item.heure_arrivee);
 
   return (
-    <tr ref={setNodeRef} style={style} className="hover:bg-slate-50 transition-colors">
+    <tr ref={setNodeRef} style={style} className="odd:bg-white even:bg-slate-100 transition-colors">
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center gap-2">
           <button className="text-slate-400 hover:text-slate-600 touch-none cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
@@ -212,7 +212,7 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
   const waitInfo = getWaitInfo(item.heure_arrivee);
 
   return (
-    <div ref={setNodeRef} style={style} className="p-4 space-y-4">
+    <div ref={setNodeRef} style={style} className="p-4 space-y-4 odd:bg-white even:bg-slate-100">
       {/* Ligne 1 : Ordre, Flèches, Heure, Suppression */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
