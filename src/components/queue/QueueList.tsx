@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowUp, ArrowDown, Clock, User, AlertCircle, GripVertical, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -50,6 +50,25 @@ function formatTime(isoString: string) {
   });
 }
 
+function getWaitInfo(heureArrivee: string): { minutes: number; className: string; label: string } {
+  const now = Date.now();
+  const arrival = new Date(heureArrivee).getTime();
+  const diffMs = now - arrival;
+  const minutes = Math.floor(diffMs / 60000);
+
+  let className: string;
+  if (minutes < 15) {
+    className = 'text-emerald-600';
+  } else if (minutes < 30) {
+    className = 'text-amber-600';
+  } else {
+    className = 'text-red-600';
+  }
+
+  const label = minutes < 1 ? "À l'instant" : `en attente depuis ${minutes} min`;
+  return { minutes, className, label };
+}
+
 // ─── Desktop variant: renders <tr> only ────────────────────────────
 
 function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMoveDown, onRemove }: {
@@ -71,6 +90,7 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
 
   const { isWalkIn, displayName, displayMotif } = getItemDisplay(item);
   const { bg, text } = statusColors[item.statut];
+  const waitInfo = getWaitInfo(item.heure_arrivee);
 
   return (
     <tr ref={setNodeRef} style={style} className="hover:bg-slate-50 transition-colors">
@@ -102,9 +122,14 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
       </td>
 
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center text-sm text-slate-600">
-          <Clock className="mr-2 h-4 w-4 text-slate-400" />
-          {formatTime(item.heure_arrivee)}
+        <div>
+          <div className="flex items-center text-sm text-slate-600">
+            <Clock className="mr-2 h-4 w-4 text-slate-400" />
+            {formatTime(item.heure_arrivee)}
+          </div>
+          <div className={`text-xs font-medium mt-0.5 ${waitInfo.className}`}>
+            {waitInfo.label}
+          </div>
         </div>
       </td>
 
@@ -184,6 +209,7 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
 
   const { isWalkIn, displayName, displayMotif } = getItemDisplay(item);
   const { bg, text } = statusColors[item.statut];
+  const waitInfo = getWaitInfo(item.heure_arrivee);
 
   return (
     <div ref={setNodeRef} style={style} className="p-4 space-y-4">
@@ -215,9 +241,14 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="flex items-center text-xs font-medium text-slate-500">
-            <Clock className="mr-1 h-3.5 w-3.5" />
-            {formatTime(item.heure_arrivee)}
+          <div className="flex items-center gap-2 text-xs font-medium">
+            <span className="text-slate-500">
+              <Clock className="mr-1 h-3.5 w-3.5 inline" />
+              {formatTime(item.heure_arrivee)}
+            </span>
+            <span className={waitInfo.className}>
+              {waitInfo.label}
+            </span>
           </div>
           <button
             onClick={() => onRemove(item.id)}
@@ -278,6 +309,12 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
 // ─── Main exported component ───────────────────────────────────────
 
 export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown, onRemove }: QueueListProps) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <>
       {/* Mobile cards */}
