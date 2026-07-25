@@ -91,6 +91,16 @@ export default function QueueManager() {
     await persistOrder(newItems);
   };
 
+  const handleRemove = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir retirer ce patient de la file d\'attente ?')) return;
+    try {
+      await queueService.removeFromQueue(id);
+      loadQueue();
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression');
+    }
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -149,6 +159,7 @@ export default function QueueManager() {
               onStatusChange={handleStatusChange}
               onMoveUp={handleMoveUp}
               onMoveDown={handleMoveDown}
+              onRemove={handleRemove}
             />
           </DndContext>
         )}

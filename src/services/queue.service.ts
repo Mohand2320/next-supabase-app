@@ -58,6 +58,24 @@ export const queueService = {
   },
 
   /**
+   * Supprime (marque ANNULE) une entrée de la file d'attente
+   * et recalcule les positions des entrées actives restantes.
+   */
+  async removeFromQueue(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE_URL}/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Erreur lors de la suppression de la file');
+    }
+
+    return res.json();
+  },
+
+  /**
    * Réorganise les positions dans la file d'attente.
    */
   async reorder(data: ReorderQueueDTO): Promise<{ success: boolean }> {

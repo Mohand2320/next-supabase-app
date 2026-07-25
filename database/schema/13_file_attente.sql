@@ -111,15 +111,12 @@ $$ LANGUAGE plpgsql;
 
 
 -- Contrainte unique (date_jour, position) pour garantir l'intégrité des positions
+-- DEFERRABLE INITIALLY DEFERRED est obligatoire pour permettre de "swapper" deux positions
+-- dans un même UPDATE (sinon PostgreSQL lève une erreur de conflit pendant l'UPDATE)
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'uq_file_attente_date_position'
-  ) THEN
-    ALTER TABLE file_attente
-    ADD CONSTRAINT uq_file_attente_date_position UNIQUE (date_jour, position);
-  END IF;
+  ALTER TABLE file_attente DROP CONSTRAINT IF EXISTS uq_file_attente_date_position;
+  ALTER TABLE file_attente ADD CONSTRAINT uq_file_attente_date_position UNIQUE (date_jour, position) DEFERRABLE INITIALLY DEFERRED;
 END$$;
 
 
@@ -139,9 +136,9 @@ BEGIN
   SET position = item.position
   FROM (
     SELECT
-      (item->>'id')::UUID AS id,
-      (item->>'position')::INTEGER AS position
-    FROM jsonb_array_elements(p_items) AS item
+      (obj->>'id')::UUID AS id,
+      (obj->>'position')::INTEGER AS position
+    FROM jsonb_array_elements(p_items) AS elem(obj)
   ) AS item
   WHERE f.id = item.id AND f.date_jour = p_date_jour;
 END;

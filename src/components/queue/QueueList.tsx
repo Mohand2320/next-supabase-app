@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowUp, ArrowDown, Clock, User, AlertCircle, GripVertical } from 'lucide-react';
+import { ArrowUp, ArrowDown, Clock, User, AlertCircle, GripVertical, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -12,6 +12,7 @@ interface QueueListProps {
   onStatusChange: (id: string, newStatus: StatutQueue) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onRemove: (id: string) => void;
 }
 
 const statusColors: Record<StatutQueue, { bg: string; text: string }> = {
@@ -51,13 +52,14 @@ function formatTime(isoString: string) {
 
 // ─── Desktop variant: renders <tr> only ────────────────────────────
 
-function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMoveDown }: {
+function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMoveDown, onRemove }: {
   item: FileAttente;
   index: number;
   items: FileAttente[];
   onStatusChange: (id: string, newStatus: StatutQueue) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onRemove: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `desktop-${item.id}` });
 
@@ -149,6 +151,13 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
       </td>
 
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        <button
+          onClick={() => onRemove(item.id)}
+          className="text-slate-400 hover:text-red-600 transition-colors p-1"
+          title="Retirer de la file"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </td>
     </tr>
   );
@@ -156,13 +165,14 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
 
 // ─── Mobile variant: renders <div> card only ──────────────────────
 
-function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMoveDown }: {
+function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMoveDown, onRemove }: {
   item: FileAttente;
   index: number;
   items: FileAttente[];
   onStatusChange: (id: string, newStatus: StatutQueue) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onRemove: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `mobile-${item.id}` });
 
@@ -200,15 +210,24 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
             </button>
           </div>
         </div>
-        <select
-          value={item.statut}
-          onChange={(e) => onStatusChange(item.id, e.target.value as StatutQueue)}
-          className={`text-xs font-semibold rounded-full px-3 py-1 border-0 cursor-pointer focus:ring-2 focus:ring-blue-600 ${bg} ${text}`}
-        >
-          {Object.entries(statusLabels).map(([val, label]) => (
-            <option key={val} value={val}>{label}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-1">
+          <select
+            value={item.statut}
+            onChange={(e) => onStatusChange(item.id, e.target.value as StatutQueue)}
+            className={`text-xs font-semibold rounded-full px-3 py-1 border-0 cursor-pointer focus:ring-2 focus:ring-blue-600 ${bg} ${text}`}
+          >
+            {Object.entries(statusLabels).map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => onRemove(item.id)}
+            className="text-slate-400 hover:text-red-600 transition-colors p-1"
+            title="Retirer de la file"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center text-sm text-slate-600">
@@ -249,7 +268,7 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
 
 // ─── Main exported component ───────────────────────────────────────
 
-export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown }: QueueListProps) {
+export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown, onRemove }: QueueListProps) {
   return (
     <>
       {/* Mobile cards */}
@@ -264,6 +283,7 @@ export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown 
               onStatusChange={onStatusChange}
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}
+              onRemove={onRemove}
             />
           ))}
         </SortableContext>
@@ -305,6 +325,7 @@ export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown 
                   onStatusChange={onStatusChange}
                   onMoveUp={onMoveUp}
                   onMoveDown={onMoveDown}
+                  onRemove={onRemove}
                 />
               ))}
             </tbody>
