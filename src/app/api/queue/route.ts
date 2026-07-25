@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         rendez_vous:rendez_vous(id, motif, heure:date_heure)
       `)
       .eq('date_jour', new Date().toISOString().split('T')[0])
+      .neq('statut', 'ANNULE')
       .order('position', { ascending: true });
 
     if (error) {
@@ -77,6 +78,10 @@ export async function POST(req: NextRequest) {
       });
 
     if (error) {
+      // Code 23505 = violation contrainte unique (race condition : insert entre le check et l'appel)
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'Ce patient est déjà dans la file d\'attente (actif)' }, { status: 409 });
+      }
       console.error('[POST /api/queue] Supabase error:', error);
       return NextResponse.json({ error: 'Erreur lors de l\'ajout à la file d\'attente' }, { status: 500 });
     }

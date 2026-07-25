@@ -29,37 +29,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Entrée introuvable' }, { status: 404 });
     }
 
-    // 1. Statut → ANNULE, position éloignée pour éviter les conflits
-    const { error: updateError } = await supabase
-      .from('file_attente')
-      .update({ statut: 'ANNULE', position: 9999 })
-      .eq('id', id);
+    // Appel atomique via RPC — verrou advisory + UPDATE unique en une transaction
+    const { error: rpcError } = await supabase.rpc('remove_from_queue', {
+      p_id: id,
+    });
 
-    if (updateError) throw updateError;
-
-    // 2. Recalculer les positions des entrées actives restantes
-    const dateJour = new Date().toISOString().split('T')[0];
-    const { data: actives, error: fetchError } = await supabase
-      .from('file_attente')
-      .select('id')
-      .eq('date_jour', dateJour)
-      .in('statut', ['EN_ATTENTE', 'APPELE', 'EN_CONSULTATION'])
-      .order('position');
-
-    if (fetchError) throw fetchError;
-
-    if (actives && actives.length > 0) {
-      const results = await Promise.all(
-        actives.map((entry, i) =>
-          supabase
-            .from('file_attente')
-            .update({ position: i + 1 })
-            .eq('id', entry.id)
-        )
-      );
-
-      const err = results.find(r => r.error)?.error;
-      if (err) throw err;
+    if (rpcError) {
+      console.error('[DELETE /api/queue/[id]] RPC error:', rpcError);
+      return NextResponse.json({ error: 'Erreur lors de la suppression de la file d\'attente' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
