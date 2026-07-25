@@ -283,6 +283,27 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
               </span>
             )}
           </div>
+
+          {(item.statut === 'EN_CONSULTATION' || item.statut === 'TERMINE') && (
+            item.patient_id ? (
+              <button
+                onClick={() => onViewPatient?.(item.patient_id!)}
+                title="Voir le dossier patient"
+                className="text-blue-500 hover:text-blue-700 transition-colors p-1"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={() => onCreatePatient?.(item)}
+                title="Créer un dossier patient"
+                className="text-emerald-500 hover:text-emerald-700 transition-colors p-1"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+            )
+          )}
+
           <button
             onClick={() => onRemove(item.id)}
             className="text-slate-400 hover:text-red-600 transition-colors p-1"
@@ -335,29 +356,6 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
           ))}
         </select>
       </div>
-
-      {/* Ligne 5 : Action dossier patient (si EN_CONSULTATION ou TERMINE) */}
-      {(item.statut === 'EN_CONSULTATION' || item.statut === 'TERMINE') && (
-        <div className="pt-2 border-t border-slate-100">
-          {item.patient_id ? (
-            <button
-              onClick={() => onViewPatient?.(item.patient_id!)}
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Voir le dossier patient
-            </button>
-          ) : (
-            <button
-              onClick={() => onCreatePatient?.(item)}
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              Créer un dossier patient
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
