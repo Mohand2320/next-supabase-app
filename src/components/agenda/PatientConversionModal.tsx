@@ -3,15 +3,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, UserPlus, Users, User, ArrowRight, Check } from 'lucide-react';
-import type { RendezVous, RdvConvertPatientPayload } from '@/types/rdv';
+import type { RdvConvertPatientPayload } from '@/types/rdv';
+
+export interface ConvertibleItem {
+  id: string;
+  nom_minimal: string | null;
+  prenom_minimal: string | null;
+  telephone_minimal: string | null;
+}
 
 interface PatientConversionModalProps {
   data: {
-    rdv: RendezVous;
+    item: ConvertibleItem;
     candidats: Array<{ id: string; nom: string; prenom: string; telephone: string | null }>;
   } | null;
   onClose: () => void;
-  onConfirm: (rdvId: string, payload: RdvConvertPatientPayload) => Promise<void>;
+  onConfirm: (itemId: string, payload: RdvConvertPatientPayload) => Promise<void>;
 }
 
 export default function PatientConversionModal({
@@ -24,7 +31,7 @@ export default function PatientConversionModal({
 
   if (!data) return null;
 
-  const { rdv, candidats } = data;
+  const { item, candidats } = data;
   const hasCandidates = candidats && candidats.length > 0;
 
   const handleSubmit = async () => {
@@ -35,9 +42,9 @@ export default function PatientConversionModal({
         ? {
             action: 'create_new',
             patient_data: {
-              nom: rdv.nom_minimal || '',
-              prenom: rdv.prenom_minimal || '',
-              telephone: rdv.telephone_minimal || '',
+              nom: item.nom_minimal || '',
+              prenom: item.prenom_minimal || '',
+              telephone: item.telephone_minimal || '',
             }
           }
         : {
@@ -45,7 +52,7 @@ export default function PatientConversionModal({
             patient_id: selectedCandidateId,
           };
 
-      await onConfirm(rdv.id, payload);
+      await onConfirm(item.id, payload);
       // Close handled by parent
     } catch (error) {
       console.error(error);
@@ -84,7 +91,7 @@ export default function PatientConversionModal({
           <div className="p-6 space-y-5">
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <p className="text-sm font-medium text-slate-800 mb-1">
-                Le RDV du nouveau patient <span className="font-bold">{rdv.prenom_minimal} {rdv.nom_minimal}</span> est terminé.
+                Le RDV du nouveau patient <span className="font-bold">{item.prenom_minimal} {item.nom_minimal}</span> est terminé.
               </p>
               <p className="text-xs text-slate-500">
                 Souhaitez-vous rattacher ce RDV à une fiche patient pour générer la séance de traitement correspondante ?
@@ -148,7 +155,7 @@ export default function PatientConversionModal({
                   </div>
                   <div>
                     <div className="text-sm font-bold text-slate-900">Créer une nouvelle fiche</div>
-                    <div className="text-xs text-slate-500 mt-0.5">Pour {rdv.prenom_minimal} {rdv.nom_minimal}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Pour {item.prenom_minimal} {item.nom_minimal}</div>
                   </div>
                 </div>
               </label>

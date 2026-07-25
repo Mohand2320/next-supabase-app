@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Plus, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   closestCenter,
@@ -14,6 +15,9 @@ import {
 
 import { queueService } from '@/services/queue.service';
 import type { FileAttente, StatutQueue } from '@/types/queue';
+import type { RdvConvertPatientPayload } from '@/types/rdv';
+import PatientConversionModal from '@/components/agenda/PatientConversionModal';
+import type { ConvertibleItem } from '@/components/agenda/PatientConversionModal';
 import QueueList from './QueueList';
 import QueueAddDialog from './QueueAddDialog';
 
@@ -27,6 +31,12 @@ export default function QueueManager() {
   const [error, setError] = useState('');
 
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const [conversionData, setConversionData] = useState<{
+    item: ConvertibleItem;
+    candidats: Array<{ id: string; nom: string; prenom: string; telephone: string | null }>;
+  } | null>(null);
+
+  const router = useRouter();
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
@@ -120,6 +130,48 @@ export default function QueueManager() {
     await persistOrder(newItems);
   };
 
+  const handleViewPatient = useCallback((patientId: string) => {
+    router.push(`/dashboard/patients/${patientId}`);
+  }, [router]);
+
+  const handleOpenConversion = useCallback(async (item: FileAttente) => {
+    let candidats: Array<{ id: string; nom: string; prenom: string; telephone: string | null }> = [];
+
+    if (item.nom_minimal || item.telephone_minimal) {
+      try {
+        const params = new URLSearchParams();
+        if (item.nom_minimal) params.set('search', item.nom_minimal);
+        params.set('limit', '10');
+
+        const res = await fetch(`/api/patients?${params.toString()}`);
+        if (res.ok) {
+          const payload = await res.json();
+          candidats = (payload?.data || []).map((p: any) => ({
+            id: p.id,
+            nom: p.last_name,
+            prenom: p.first_name,
+            telephone: p.phone,
+          }));
+        }
+      } catch {
+        // Échec silencieux — la modale s'ouvre sans candidats
+      }
+    }
+
+    setConversionData({ item, candidats });
+  }, []);
+
+  const handleConvertPatient = useCallback(async (
+    itemId: string,
+    payload: RdvConvertPatientPayload
+  ) => {
+    await queueService.convertWalkinToPatient(itemId, payload);
+    setConversionData(null);
+    loadQueue();
+  }, [loadQueue]);
+
+  const closeConversion = useCallback(() => setConversionData(null), []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end sm:justify-start gap-3">
@@ -160,6 +212,8 @@ export default function QueueManager() {
               onMoveUp={handleMoveUp}
               onMoveDown={handleMoveDown}
               onRemove={handleRemove}
+              onViewPatient={handleViewPatient}
+              onCreatePatient={handleOpenConversion}
             />
           </DndContext>
         )}
@@ -169,6 +223,12 @@ export default function QueueManager() {
         isOpen={isAddDialogOpen}
         onClose={() => setAddDialogOpen(false)}
         onSuccess={loadQueue}
+      />
+
+      <PatientConversionModal
+        data={conversionData}
+        onClose={closeConversion}
+        onConfirm={handleConvertPatient}
       />
     </div>
   );

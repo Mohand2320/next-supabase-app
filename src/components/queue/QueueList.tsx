@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowUp, ArrowDown, Clock, User, AlertCircle, GripVertical, Trash2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Clock, User, AlertCircle, GripVertical, Trash2, ExternalLink, UserPlus } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -13,6 +13,8 @@ interface QueueListProps {
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onRemove: (id: string) => void;
+  onViewPatient?: (patientId: string) => void;
+  onCreatePatient?: (item: FileAttente) => void;
 }
 
 const statusColors: Record<StatutQueue, { bg: string; text: string }> = {
@@ -71,7 +73,7 @@ function getWaitInfo(heureArrivee: string): { minutes: number; className: string
 
 // ─── Desktop variant: renders <tr> only ────────────────────────────
 
-function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMoveDown, onRemove }: {
+function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMoveDown, onRemove, onViewPatient, onCreatePatient }: {
   item: FileAttente;
   index: number;
   items: FileAttente[];
@@ -79,6 +81,8 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onRemove: (id: string) => void;
+  onViewPatient?: (patientId: string) => void;
+  onCreatePatient?: (item: FileAttente) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `desktop-${item.id}` });
 
@@ -178,13 +182,36 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
       </td>
 
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-        <button
-          onClick={() => onRemove(item.id)}
-          className="text-slate-400 hover:text-red-600 transition-colors p-1"
-          title="Retirer de la file"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center justify-end gap-2">
+          {(item.statut === 'EN_CONSULTATION' || item.statut === 'TERMINE') && (
+            item.patient_id ? (
+              <button
+                onClick={() => onViewPatient?.(item.patient_id!)}
+                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                title="Voir le dossier patient"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Voir dossier
+              </button>
+            ) : (
+              <button
+                onClick={() => onCreatePatient?.(item)}
+                className="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                title="Créer un dossier patient"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Créer dossier
+              </button>
+            )
+          )}
+          <button
+            onClick={() => onRemove(item.id)}
+            className="text-slate-400 hover:text-red-600 transition-colors p-1"
+            title="Retirer de la file"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -192,7 +219,7 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
 
 // ─── Mobile variant: renders <div> card only ──────────────────────
 
-function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMoveDown, onRemove }: {
+function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMoveDown, onRemove, onViewPatient, onCreatePatient }: {
   item: FileAttente;
   index: number;
   items: FileAttente[];
@@ -200,6 +227,8 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onRemove: (id: string) => void;
+  onViewPatient?: (patientId: string) => void;
+  onCreatePatient?: (item: FileAttente) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `mobile-${item.id}` });
 
@@ -306,13 +335,36 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
           ))}
         </select>
       </div>
+
+      {/* Ligne 5 : Action dossier patient (si EN_CONSULTATION ou TERMINE) */}
+      {(item.statut === 'EN_CONSULTATION' || item.statut === 'TERMINE') && (
+        <div className="pt-2 border-t border-slate-100">
+          {item.patient_id ? (
+            <button
+              onClick={() => onViewPatient?.(item.patient_id!)}
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Voir le dossier patient
+            </button>
+          ) : (
+            <button
+              onClick={() => onCreatePatient?.(item)}
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              Créer un dossier patient
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Main exported component ───────────────────────────────────────
 
-export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown, onRemove }: QueueListProps) {
+export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown, onRemove, onViewPatient, onCreatePatient }: QueueListProps) {
   const [, setTick] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 30_000);
@@ -334,6 +386,8 @@ export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown,
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}
               onRemove={onRemove}
+              onViewPatient={onViewPatient}
+              onCreatePatient={onCreatePatient}
             />
           ))}
         </SortableContext>
@@ -376,6 +430,8 @@ export default function QueueList({ items, onStatusChange, onMoveUp, onMoveDown,
                   onMoveUp={onMoveUp}
                   onMoveDown={onMoveDown}
                   onRemove={onRemove}
+                  onViewPatient={onViewPatient}
+                  onCreatePatient={onCreatePatient}
                 />
               ))}
             </tbody>

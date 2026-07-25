@@ -1,4 +1,5 @@
 import type { FileAttente, AddToQueueDTO, UpdateQueueStatusDTO, ReorderQueueDTO } from '@/types/queue';
+import type { RdvConvertPatientPayload } from '@/types/rdv';
 
 const API_BASE_URL = '/api/queue';
 
@@ -91,5 +92,28 @@ export const queueService = {
     }
 
     return res.json();
+  },
+
+  /**
+   * Convertit une entrée walk-in en dossier patient.
+   * Crée ou lie un patient et met à jour l'entrée file_attente + RDV lié.
+   */
+  async convertWalkinToPatient(
+    id: string,
+    data: RdvConvertPatientPayload
+  ): Promise<{ entry: FileAttente; patient_id: string; action_effectuee: string }> {
+    const res = await fetch(`${API_BASE_URL}/${id}/convert-patient`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const payload = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      throw new Error(payload?.error || 'Erreur lors de la conversion');
+    }
+
+    return payload;
   }
 };
