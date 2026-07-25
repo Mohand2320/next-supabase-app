@@ -127,9 +127,11 @@ function SortableDesktopRow({ item, index, items, onStatusChange, onMoveUp, onMo
             <Clock className="mr-2 h-4 w-4 text-slate-400" />
             {formatTime(item.heure_arrivee)}
           </div>
-          <div className={`text-xs font-medium mt-0.5 ${waitInfo.className}`}>
-            {waitInfo.label}
-          </div>
+          {(item.statut === 'EN_ATTENTE' || item.statut === 'APPELE') && (
+            <div className={`text-xs font-medium mt-0.5 ${waitInfo.className}`}>
+              {waitInfo.label}
+            </div>
+          )}
         </div>
       </td>
 
@@ -246,9 +248,11 @@ function SortableMobileCard({ item, index, items, onStatusChange, onMoveUp, onMo
               <Clock className="mr-1 h-3.5 w-3.5 inline" />
               {formatTime(item.heure_arrivee)}
             </span>
-            <span className={waitInfo.className}>
-              {waitInfo.label}
-            </span>
+            {(item.statut === 'EN_ATTENTE' || item.statut === 'APPELE') && (
+              <span className={waitInfo.className}>
+                {waitInfo.label}
+              </span>
+            )}
           </div>
           <button
             onClick={() => onRemove(item.id)}
